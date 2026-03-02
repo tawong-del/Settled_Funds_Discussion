@@ -4,7 +4,6 @@ import { useState } from "react"
 import { ArrowLeft, X, ChevronDown, ChevronUp, Info } from "lucide-react"
 import { type CurrencyView } from "@/components/currency-toggle"
 import { AccountSection, type RowData } from "@/components/account-section"
-import { InfoSheet } from "@/components/info-sheet"
 
 type FromAccountType = "tfsa" | "margin"
 
@@ -53,19 +52,7 @@ export function TransferView() {
   const [toOpen, setToOpen] = useState(true)
   const [fromAccount, setFromAccount] = useState<FromAccountType>("tfsa")
   const [fromDropdownOpen, setFromDropdownOpen] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [sheetContent, setSheetContent] = useState<{ title: string; body: string }>({
-    title: "",
-    body: "",
-  })
   const [inputAmount, setInputAmount] = useState("")
-
-  const combined = isCombinedView(currencyView)
-
-  function openSheet(title: string, body: string) {
-    setSheetContent({ title, body })
-    setSheetOpen(true)
-  }
 
   function getFromRows(): RowData[] {
     const t = availableToTransferData[fromAccount]
@@ -76,27 +63,14 @@ export function TransferView() {
         cad: fmt(t.cad),
         combinedCad: fmt(t.combinedCad),
         combinedUsd: fmt(t.combinedUsd),
-        hasTooltip: true,
-        tooltipKey: "available-transfer",
       },
     ]
   }
 
   function getToRows(): RowData[] {
-    if (combined) {
-      return [
-        {
-          label: "Buying power",
-          usd: "$100.00",
-          cad: "$100.00",
-          combinedCad: "$200.00",
-          combinedUsd: "$180.00",
-        },
-      ]
-    }
     return [
       {
-        label: "Cash",
+        label: "Buying power",
         usd: "$100.00",
         cad: "$100.00",
         combinedCad: "$200.00",
@@ -119,19 +93,6 @@ export function TransferView() {
       return "This request will take between 2-3 business days."
     }
     return null
-  }
-
-  function handleTooltipClick(key?: string) {
-    switch (key) {
-      case "available-transfer":
-        openSheet(
-          "Available to transfer",
-          "This is the total amount available for transfer from this account. Transfers within the settled cash amount typically process faster."
-        )
-        break
-      default:
-        break
-    }
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -280,7 +241,6 @@ export function TransferView() {
             <AccountSection
               currencyView={currencyView}
               onCurrencyChange={setCurrencyView}
-              onTooltipClick={handleTooltipClick}
               rows={fromRows}
             />
           </div>
@@ -331,14 +291,6 @@ export function TransferView() {
         </button>
       </div>
 
-      {/* Info Bottom Sheet */}
-      <InfoSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        title={sheetContent.title}
-      >
-        <p>{sheetContent.body}</p>
-      </InfoSheet>
     </div>
   )
 }
