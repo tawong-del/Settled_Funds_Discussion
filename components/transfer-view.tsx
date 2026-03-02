@@ -51,7 +51,8 @@ function currencyLabel(v: CurrencyView): string {
 type MarginScenario = "same-day" | "interest-only" | "choose" | "rejected"
 
 export function TransferView() {
-  const [currencyView, setCurrencyView] = useState<CurrencyView>("combined-cad")
+  const [fromCurrencyView, setFromCurrencyView] = useState<CurrencyView>("combined-cad")
+  const [toCurrencyView, setToCurrencyView] = useState<CurrencyView>("combined-cad")
   const [fromOpen, setFromOpen] = useState(true)
   const [toOpen, setToOpen] = useState(true)
   const [fromAccount, setFromAccount] = useState<FromAccountType>("tfsa")
@@ -94,9 +95,9 @@ export function TransferView() {
     const amount = parseFloat(inputAmount)
     if (isNaN(amount) || amount <= 0) return null
 
-    const noInterest = val(marginWithoutInterest, currencyView)
-    const today = val(marginTransferToday, currencyView)
-    const max = val(marginTransfer, currencyView)
+    const noInterest = val(marginWithoutInterest, fromCurrencyView)
+    const today = val(marginTransferToday, fromCurrencyView)
+    const max = val(marginTransfer, fromCurrencyView)
 
     if (amount <= noInterest) return "same-day"
     if (amount <= today) return "interest-only"
@@ -119,7 +120,7 @@ export function TransferView() {
         case "choose":
           return { text: "This request will take between 2-3 business days.", color: "text-amber-600" }
         case "rejected": {
-          const max = val(marginTransfer, currencyView)
+          const max = val(marginTransfer, fromCurrencyView)
           return { text: `Amount exceeds available to transfer of ${fmt(max)}.`, color: "text-red-600" }
         }
         default:
@@ -128,8 +129,8 @@ export function TransferView() {
     }
 
     // TFSA
-    const todayLimit = val(tfsaTransferToday, currencyView)
-    const maxLimit = val(tfsaTransfer, currencyView)
+    const todayLimit = val(tfsaTransferToday, fromCurrencyView)
+    const maxLimit = val(tfsaTransfer, fromCurrencyView)
     if (amount <= todayLimit) return { text: "This request will take between 1-2 business days.", color: "text-amber-600" }
     if (amount <= maxLimit) return { text: "This request will take between 2-3 business days.", color: "text-amber-600" }
     return { text: `Amount exceeds available to transfer of ${fmt(maxLimit)}.`, color: "text-red-600" }
@@ -150,7 +151,7 @@ export function TransferView() {
         return
       }
     } else {
-      const maxLimit = val(tfsaTransfer, currencyView)
+      const maxLimit = val(tfsaTransfer, fromCurrencyView)
       if (amount > maxLimit) return
     }
   }
@@ -170,8 +171,8 @@ export function TransferView() {
   const isRejected = eta?.color === "text-red-600"
 
   const amount = parseFloat(inputAmount)
-  const ccy = currencyLabel(currencyView)
-  const noInterestVal = val(marginWithoutInterest, currencyView)
+  const ccy = currencyLabel(fromCurrencyView)
+  const noInterestVal = val(marginWithoutInterest, fromCurrencyView)
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background">
@@ -303,8 +304,8 @@ export function TransferView() {
             </div>
 
             <AccountSection
-              currencyView={currencyView}
-              onCurrencyChange={setCurrencyView}
+              currencyView={fromCurrencyView}
+              onCurrencyChange={setFromCurrencyView}
               rows={fromRows}
             />
           </div>
@@ -334,8 +335,8 @@ export function TransferView() {
             </div>
 
             <AccountSection
-              currencyView={currencyView}
-              onCurrencyChange={setCurrencyView}
+              currencyView={toCurrencyView}
+              onCurrencyChange={setToCurrencyView}
               rows={toRows}
             />
           </div>
