@@ -5,12 +5,13 @@ import { ArrowLeft, X, ChevronDown, ChevronUp, Info } from "lucide-react"
 import { type CurrencyView } from "@/components/currency-toggle"
 import { AccountSection, type RowData } from "@/components/account-section"
 
-type FromAccountType = "tfsa" | "margin"
+type FromAccountType = "tfsa" | "margin" | "cash"
 type Screen = "input" | "confirm" | "success"
 
 const fromAccounts: Record<FromAccountType, { label: string; number: string; subtitle: string }> = {
   tfsa: { label: "TFSA", number: "123345678", subtitle: "Self-directed Individual" },
   margin: { label: "MARGIN", number: "123123123", subtitle: "Self-directed Individual" },
+  cash: { label: "CASH", number: "123456789", subtitle: "Self-directed Individual" },
 }
 
 const toAccount = { label: "RRSP", number: "123345678", subtitle: "Self-directed Individual" }
@@ -24,6 +25,9 @@ interface Thresholds {
 
 const tfsaTransfer: Thresholds = { cad: 300, usd: 300, combinedCad: 600, combinedUsd: 550 }
 const tfsaTransferToday: Thresholds = { cad: 280, usd: 280, combinedCad: 560, combinedUsd: 510 }
+
+const cashTransfer: Thresholds = { cad: 300, usd: 300, combinedCad: 600, combinedUsd: 550 }
+const cashTransferToday: Thresholds = { cad: 290, usd: 290, combinedCad: 580, combinedUsd: 530 }
 
 const marginTransfer: Thresholds = { cad: 500, usd: 500, combinedCad: 1000, combinedUsd: 920 }
 const marginTransferToday: Thresholds = { cad: 375, usd: 375, combinedCad: 750, combinedUsd: 690 }
@@ -68,8 +72,20 @@ export function TransferView() {
 
   // ── Helpers ──
 
+  function getTransferThreshold(): Thresholds {
+    if (fromAccount === "margin") return marginTransfer
+    if (fromAccount === "cash") return cashTransfer
+    return tfsaTransfer
+  }
+
+  function getTodayThreshold(): Thresholds {
+    if (fromAccount === "margin") return marginTransferToday
+    if (fromAccount === "cash") return cashTransferToday
+    return tfsaTransferToday
+  }
+
   function getFromRows(): RowData[] {
-    const t = fromAccount === "margin" ? marginTransfer : tfsaTransfer
+    const t = getTransferThreshold()
     return [{
       label: "Available to transfer",
       usd: fmt(t.usd), cad: fmt(t.cad),
@@ -108,9 +124,12 @@ export function TransferView() {
         default: return null
       }
     }
-    const todayLimit = val(tfsaTransferToday, fromCurrencyView)
-    const maxLimit = val(tfsaTransfer, fromCurrencyView)
-    if (amount <= todayLimit) return { text: "This request will take between 1-2 business days.", color: "text-amber-600" }
+    const todayLimit = val(getTodayThreshold(), fromCurrencyView)
+    const maxLimit = val(getTransferThreshold(), fromCurrencyView)
+    if (amount <= todayLimit) {
+      if (fromAccount === "cash") return { text: "This request will be processed same day.", color: "text-green-600" }
+      return { text: "This request will take between 1-2 business days.", color: "text-amber-600" }
+    }
     if (amount <= maxLimit) return { text: "This request will take between 2-3 business days.", color: "text-amber-600" }
     return { text: `Amount exceeds available to transfer of ${fmt(maxLimit)}.`, color: "text-red-600" }
   }
@@ -124,16 +143,33 @@ export function TransferView() {
       if (s === "choose" && settlementChoice === "settlement") return "2-3 business days"
       return "2-3 business days"
     }
-    const todayLimit = val(tfsaTransferToday, fromCurrencyView)
-    if (amount <= todayLimit) return "1-2 business days"
+    const todayLimit = val(getTodayThreshold(), fromCurrencyView)
+    if (amount <= todayLimit) {
+      if (fromAccount === "cash") return "Same day"
+      return "1-2 business days"
+    }
     return "2-3 business days"
   }
 
-  function getInterestNote(): string | null {
+  function getMarginChoiceBanner(): { text: string; borderColor: string; bgColor: string; textColor: string } | null {
     if (fromAccount !== "margin") return null
     const s = getMarginScenario()
-    if (s === "interest-only") return "Interest charges will apply on unsettled funds."
-    if (s === "choose" && settlementChoice === "instant") return "Interest charges will apply on unsettled funds."
+    if (s === "interest-only" || (s === "choose" && settlementChoice === "instant")) {
+      return {
+        text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer.",
+        borderColor: "border-amber-200",
+        bgColor: "bg-amber-50",
+        textColor: "text-amber-800",
+      }
+    }
+    if (s === "choose" && settlementChoice === "settlement") {
+      return {
+        text: "You chose to transfer on settlement day. Your request will be processed once funds have settled, estimated 2-3 business days.",
+        borderColor: "border-green-200",
+        bgColor: "bg-green-50",
+        textColor: "text-green-800",
+      }
+    }
     return null
   }
 
@@ -151,7 +187,7 @@ export function TransferView() {
         return
       }
     } else {
-      if (amount > val(tfsaTransfer, fromCurrencyView)) return
+      if (amount > val(getTransferThreshold(), fromCurrencyView)) return
     }
     setScreen("confirm")
   }
@@ -240,7 +276,7 @@ export function TransferView() {
   // ══════════════════════════════════════
   if (screen === "confirm") {
     const confirmEta = getConfirmEta()
-    const interestNote = getInterestNote()
+    const choiceBanner = getMarginChoiceBanner()
 
     return (
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background">
@@ -310,10 +346,10 @@ export function TransferView() {
           </div>
         </div>
 
-        {/* Interest note */}
-        {interestNote && (
-          <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-xs leading-relaxed text-amber-800">{interestNote}</p>
+        {/* Margin choice reminder banner */}
+        {choiceBanner && (
+          <div className={`mx-4 mt-3 rounded-lg border ${choiceBanner.borderColor} ${choiceBanner.bgColor} px-4 py-3`}>
+            <p className={`text-xs leading-relaxed ${choiceBanner.textColor}`}>{choiceBanner.text}</p>
           </div>
         )}
 
