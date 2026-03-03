@@ -31,7 +31,7 @@ const cashTransfer: Thresholds = { cad: 300, usd: 250, combinedCad: 643, combine
 const cashTransferToday: Thresholds = { cad: 290, usd: 242, combinedCad: 622, combinedUsd: 454 }
 
 const marginTransfer: Thresholds = { cad: 400, usd: 300, combinedCad: 811, combinedUsd: 592 }
-const marginTransferToday: Thresholds = { cad: 300, usd: 225, combinedCad: 608, combinedUsd: 444 }
+const marginTransferToday: Thresholds = { cad: 400, usd: 300, combinedCad: 811, combinedUsd: 592 }
 const marginWithoutInterest: Thresholds = { cad: 150, usd: 125, combinedCad: 321, combinedUsd: 235 }
 
 // Unsettled cash = Available to Transfer - Available to Transfer Today
@@ -58,7 +58,7 @@ function ccyLabel(v: CurrencyView): string {
   return v === "usd" || v === "combined-usd" ? "USD" : "CAD"
 }
 
-type MarginScenario = "same-day" | "choose-zero" | "choose-reduced" | "rejected"
+type MarginScenario = "same-day" | "choose-zero" | "rejected"
 
 export function TransferView() {
   const [screen, setScreen] = useState<Screen>("input")
@@ -74,7 +74,7 @@ export function TransferView() {
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
 
   const [showDialog, setShowDialog] = useState(false)
-  const [dialogScenario, setDialogScenario] = useState<"choose-zero" | "choose-reduced" | null>(null)
+  const [dialogScenario, setDialogScenario] = useState<"choose-zero" | null>(null)
   const [settlementChoice, setSettlementChoice] = useState<"instant" | "settlement" | null>(null)
 
   const amount = parseFloat(inputAmount)
@@ -139,11 +139,9 @@ export function TransferView() {
   function getMarginScenario(): MarginScenario | null {
     if (isNaN(amount) || amount <= 0) return null
     const noInterest = val(marginWithoutInterest, logicView())
-    const today = val(marginTransferToday, logicView())
     const max = val(marginTransfer, logicView())
     if (amount <= noInterest) return "same-day"
-    if (amount <= today) return "choose-zero"
-    if (amount <= max) return "choose-reduced"
+    if (amount <= max) return "choose-zero"
     return "rejected"
   }
 
@@ -154,7 +152,6 @@ export function TransferView() {
       switch (s) {
         case "same-day": return { text: "This request will be processed same day.", color: "text-green-600" }
         case "choose-zero": return { text: "Amount exceeds your cash balance. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
-        case "choose-reduced": return { text: "Amount exceeds your cash balance and includes unsettled funds. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
         case "rejected": return { text: `Amount exceeds available to transfer of ${fmt(val(marginTransfer, logicView()))}.`, color: "text-red-600" }
         default: return null
       }
@@ -173,8 +170,8 @@ export function TransferView() {
     if (fromAccount === "margin") {
       const s = getMarginScenario()
       if (s === "same-day") return "Same day"
-      if ((s === "choose-zero" || s === "choose-reduced") && settlementChoice === "instant") return "Same day"
-      if ((s === "choose-zero" || s === "choose-reduced") && settlementChoice === "settlement") return "2-3 business days"
+      if (s === "choose-zero" && settlementChoice === "instant") return "Same day"
+      if (s === "choose-zero" && settlementChoice === "settlement") return "2-3 business days"
       return "2-3 business days"
     }
     const todayLimit = val(getTodayThreshold(), logicView())
@@ -188,7 +185,7 @@ export function TransferView() {
   function getMarginChoiceBanner(): { text: string; borderColor: string; bgColor: string; textColor: string } | null {
     if (fromAccount !== "margin") return null
     const s = getMarginScenario()
-    if ((s === "choose-zero" || s === "choose-reduced") && settlementChoice === "instant") {
+    if (s === "choose-zero" && settlementChoice === "instant") {
       return {
         text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing.",
         borderColor: "border-amber-200",
@@ -202,14 +199,6 @@ export function TransferView() {
         borderColor: "border-green-200",
         bgColor: "bg-green-50",
         textColor: "text-green-800",
-      }
-    }
-    if (s === "choose-reduced" && settlementChoice === "settlement") {
-      return {
-        text: "You chose to wait for settlement day. Interest charges will be reduced but may still apply. Your request will be processed once funds have settled, estimated 2-3 business days.",
-        borderColor: "border-amber-200",
-        bgColor: "bg-amber-50",
-        textColor: "text-amber-800",
       }
     }
     if (s === "same-day" && !isNaN(amount) && amount > val(marginWithoutInterest, singleCurrencyView())) {
@@ -230,7 +219,7 @@ export function TransferView() {
     if (fromAccount === "margin") {
       const s = getMarginScenario()
       if (s === "rejected") return
-      if (s === "choose-zero" || s === "choose-reduced") {
+      if (s === "choose-zero") {
         setDialogScenario(s)
         setSettlementChoice(null)
         setShowDialog(true)
@@ -671,7 +660,7 @@ export function TransferView() {
               </p>
             </div>
 
-            {(dialogScenario === "choose-zero" || dialogScenario === "choose-reduced") && (
+            {dialogScenario === "choose-zero" && (
               <div className="space-y-3 mb-5">
                 <label
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40 ${
@@ -718,9 +707,7 @@ export function TransferView() {
                   <div>
                     <p className="text-sm font-semibold text-foreground">Transfer on settlement day</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                      {dialogScenario === "choose-zero"
-                        ? "Wait for settlement day so that no interest charges are incurred."
-                        : "Wait for settlement day. Interest charges will be reduced but may still apply."}
+                      Wait for settlement day so that no interest charges are incurred.
                     </p>
                   </div>
                 </label>
