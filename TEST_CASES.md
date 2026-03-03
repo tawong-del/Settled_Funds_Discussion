@@ -62,8 +62,9 @@ All comparisons use the **combined** currency view matching the transfer currenc
 All comparisons use the **combined** currency view matching the transfer currency.
 
 - **amount <= Available to Transfer without Interest (combined)** → "same-day", no dialog
-  - Sub-check on confirm screen: if amount > Available to Transfer without Interest **(single currency)** → amber margin warning banner
-- **Available to Transfer without Interest (combined) < amount <= Available to Transfer (combined)** → "choose-zero", dialog appears with two options (instant / settlement)
+  - Sub-check on confirm screen: if amount > Available to Transfer without Interest **(single currency)** → amber multi-currency warning banner
+- **Available to Transfer without Interest (combined) < amount <= Cash Balance (combined)** → "choose-zero", dialog appears with two options (instant / settlement)
+- **Cash Balance (combined) < amount <= Available to Transfer (combined)** → "margin-borrow", no dialog, interest always applies
 - **amount > Available to Transfer (combined)** → Rejected, Next button disabled
 
 ---
@@ -152,40 +153,47 @@ Thresholds used:
 | M-CAD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
 | M-CAD-02 | $100 | $100 <= $150 single CAD | "This request will be processed same day." | Green | Enabled | No | Same day | None |
 | M-CAD-03 | $150 | $150 = $150 single CAD (boundary) | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| M-CAD-04 | $150.01 | $150.01 > $150 single CAD, but <= $321 combined CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
-| M-CAD-05 | $200 | $200 > $150 single CAD, but <= $321 combined CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
-| M-CAD-06 | $321 | $321 = $321 combined CAD (boundary), $321 > $150 single CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
+| M-CAD-04 | $150.01 | $150.01 > $150 single CAD, but <= $321 combined CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-CAD-05 | $200 | $200 > $150 single CAD, but <= $321 combined CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-CAD-06 | $321 | $321 = $321 combined CAD (boundary), $321 > $150 single CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
 
-#### Scenario: choose-zero ($321 < amount <= $811 combined CAD)
+#### Scenario: choose-zero ($321 < amount <= $524 combined CAD)
 
 Each test case has two sub-paths: **instant** and **settlement**.
 
 | TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Dialog Warning Text |
 |---|---|---|---|---|---|---|
-| M-CAD-07 | $321.01 | "Amount exceeds your cash balance. Choose to transfer now with interest or wait for settlement." | Amber | Enabled | Yes | "Your transfer of $321.01 CAD exceeds the cash amount of $321.00 CAD. The remaining funds are pending settlement. Please choose how you would like to proceed." |
-| M-CAD-08 | $500 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $500.00 CAD exceeds the cash amount of $321.00 CAD..." |
-| M-CAD-09 | $600 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $600.00 CAD exceeds the cash amount of $321.00 CAD..." |
-| M-CAD-10 | $811 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $811.00 CAD exceeds the cash amount of $321.00 CAD..." |
+| M-CAD-07 | $321.01 | "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement." | Amber | Enabled | Yes | "Your transfer of $321.01 CAD exceeds your settled cash of $321.00 CAD. The remaining funds are pending settlement. Please choose how you would like to proceed." |
+| M-CAD-08 | $400 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $400.00 CAD exceeds your settled cash of $321.00 CAD..." |
+| M-CAD-09 | $524 | (same ETA message, boundary) | Amber | Enabled | Yes | "Your transfer of $524.00 CAD exceeds your settled cash of $321.00 CAD..." |
 
 **Confirm screen outcomes for each choose-zero test case above:**
 
 | TC# | Choice | Confirm ETA | Confirm Banner Color | Confirm Banner Text |
 |---|---|---|---|---|
-| M-CAD-07a | instant | Same day | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
+| M-CAD-07a | instant | Same day | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
 | M-CAD-07b | settlement | 2-3 business days | Green | "You chose to wait for settlement day. No interest charges will apply. Your request will be processed once funds have settled, estimated 2-3 business days." |
 | M-CAD-08a | instant | Same day | Amber | (same as M-CAD-07a) |
 | M-CAD-08b | settlement | 2-3 business days | Green | (same as M-CAD-07b) |
 | M-CAD-09a | instant | Same day | Amber | (same as M-CAD-07a) |
 | M-CAD-09b | settlement | 2-3 business days | Green | (same as M-CAD-07b) |
-| M-CAD-10a | instant | Same day | Amber | (same as M-CAD-07a) |
-| M-CAD-10b | settlement | 2-3 business days | Green | (same as M-CAD-07b) |
+
+#### Scenario: margin-borrow ($524 < amount <= $811 combined CAD)
+
+No dialog. Interest always applies. Goes directly to confirm screen.
+
+| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
+|---|---|---|---|---|---|---|---|
+| M-CAD-10 | $524.01 | "Amount exceeds your cash balance. Interest charges will apply." | Amber | Enabled | No | Same day | Amber: "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-CAD-11 | $700 | (same ETA message) | Amber | Enabled | No | Same day | Amber: (same as M-CAD-10) |
+| M-CAD-12 | $811 | (same ETA message, boundary) | Amber | Enabled | No | Same day | Amber: (same as M-CAD-10) |
 
 #### Scenario: rejected (amount > $811 combined CAD)
 
 | TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
 |---|---|---|---|---|---|---|---|
-| M-CAD-11 | $811.01 | "Amount exceeds available to transfer of $811.00." | Red | Disabled | No | — | — |
-| M-CAD-12 | $1000 | "Amount exceeds available to transfer of $811.00." | Red | Disabled | No | — | — |
+| M-CAD-13 | $811.01 | "Amount exceeds available to transfer of $811.00." | Red | Disabled | No | — | — |
+| M-CAD-14 | $1000 | "Amount exceeds available to transfer of $811.00." | Red | Disabled | No | — | — |
 
 ---
 
@@ -203,38 +211,47 @@ Thresholds used:
 | M-USD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
 | M-USD-02 | $50 | $50 <= $125 single USD | "This request will be processed same day." | Green | Enabled | No | Same day | None |
 | M-USD-03 | $125 | $125 = $125 single USD (boundary) | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| M-USD-04 | $125.01 | $125.01 > $125 single USD, but <= $235 combined USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
-| M-USD-05 | $200 | $200 > $125 single USD, but <= $235 combined USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
-| M-USD-06 | $235 | $235 = $235 combined USD (boundary), $235 > $125 single USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
+| M-USD-04 | $125.01 | $125.01 > $125 single USD, but <= $235 combined USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-USD-05 | $200 | $200 > $125 single USD, but <= $235 combined USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-USD-06 | $235 | $235 = $235 combined USD (boundary), $235 > $125 single USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
 
-#### Scenario: choose-zero ($235 < amount <= $592 combined USD)
+#### Scenario: choose-zero ($235 < amount <= $383 combined USD)
+
+Each test case has two sub-paths: **instant** and **settlement**.
 
 | TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Dialog Warning Text |
 |---|---|---|---|---|---|---|
-| M-USD-07 | $235.01 | "Amount exceeds your cash balance. Choose to transfer now with interest or wait for settlement." | Amber | Enabled | Yes | "Your transfer of $235.01 USD exceeds the cash amount of $235.00 USD. The remaining funds are pending settlement. Please choose how you would like to proceed." |
-| M-USD-08 | $400 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $400.00 USD exceeds the cash amount of $235.00 USD..." |
-| M-USD-09 | $500 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $500.00 USD exceeds the cash amount of $235.00 USD..." |
-| M-USD-10 | $592 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $592.00 USD exceeds the cash amount of $235.00 USD..." |
+| M-USD-07 | $235.01 | "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement." | Amber | Enabled | Yes | "Your transfer of $235.01 USD exceeds your settled cash of $235.00 USD. The remaining funds are pending settlement. Please choose how you would like to proceed." |
+| M-USD-08 | $300 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $300.00 USD exceeds your settled cash of $235.00 USD..." |
+| M-USD-09 | $383 | (same ETA message, boundary) | Amber | Enabled | Yes | "Your transfer of $383.00 USD exceeds your settled cash of $235.00 USD..." |
 
 **Confirm screen outcomes for each choose-zero test case above:**
 
 | TC# | Choice | Confirm ETA | Confirm Banner Color | Confirm Banner Text |
 |---|---|---|---|---|
-| M-USD-07a | instant | Same day | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
+| M-USD-07a | instant | Same day | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
 | M-USD-07b | settlement | 2-3 business days | Green | "You chose to wait for settlement day. No interest charges will apply. Your request will be processed once funds have settled, estimated 2-3 business days." |
 | M-USD-08a | instant | Same day | Amber | (same as M-USD-07a) |
 | M-USD-08b | settlement | 2-3 business days | Green | (same as M-USD-07b) |
 | M-USD-09a | instant | Same day | Amber | (same as M-USD-07a) |
 | M-USD-09b | settlement | 2-3 business days | Green | (same as M-USD-07b) |
-| M-USD-10a | instant | Same day | Amber | (same as M-USD-07a) |
-| M-USD-10b | settlement | 2-3 business days | Green | (same as M-USD-07b) |
+
+#### Scenario: margin-borrow ($383 < amount <= $592 combined USD)
+
+No dialog. Interest always applies. Goes directly to confirm screen.
+
+| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
+|---|---|---|---|---|---|---|---|
+| M-USD-10 | $383.01 | "Amount exceeds your cash balance. Interest charges will apply." | Amber | Enabled | No | Same day | Amber: "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-USD-11 | $500 | (same ETA message) | Amber | Enabled | No | Same day | Amber: (same as M-USD-10) |
+| M-USD-12 | $592 | (same ETA message, boundary) | Amber | Enabled | No | Same day | Amber: (same as M-USD-10) |
 
 #### Scenario: rejected (amount > $592 combined USD)
 
 | TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
 |---|---|---|---|---|---|---|---|
-| M-USD-11 | $592.01 | "Amount exceeds available to transfer of $592.00." | Red | Disabled | No | — | — |
-| M-USD-12 | $1000 | "Amount exceeds available to transfer of $592.00." | Red | Disabled | No | — | — |
+| M-USD-13 | $592.01 | "Amount exceeds available to transfer of $592.00." | Red | Disabled | No | — | — |
+| M-USD-14 | $1000 | "Amount exceeds available to transfer of $592.00." | Red | Disabled | No | — | — |
 
 ---
 
@@ -242,7 +259,7 @@ Thresholds used:
 
 | TC# | Precondition | Expected Heading | Expected Body | Known Issue |
 |---|---|---|---|---|
-| S-01 | Any successful transfer reaches success screen | "Your transfer funds is in progress" | "You can review the progress in your transfer funds history." | Grammar: should be "Your transfer is in progress" (BA_REVIEW item #4) |
+| S-01 | Any successful transfer reaches success screen | "Your internal funds transfer is in progress" | "You can review the progress in your internal funds transfer history." | — |
 | S-02 | Click "Done" on success screen | Returns to input screen, amount cleared, settlement choice reset | — | — |
 
 ---
@@ -265,8 +282,8 @@ Thresholds used:
 - TFSA USD: 8 cases (T-USD-01 through T-USD-08)
 - CASH CAD: 8 cases (C-CAD-01 through C-CAD-08)
 - CASH USD: 8 cases (C-USD-01 through C-USD-08)
-- MARGIN CAD: 12 input cases + 8 confirm sub-cases = 20 (M-CAD-01 through M-CAD-12, plus a/b variants)
-- MARGIN USD: 12 input cases + 8 confirm sub-cases = 20 (M-USD-01 through M-USD-12, plus a/b variants)
+- MARGIN CAD: 14 input cases + 6 confirm sub-cases = 20 (M-CAD-01 through M-CAD-14, plus a/b variants)
+- MARGIN USD: 14 input cases + 6 confirm sub-cases = 20 (M-USD-01 through M-USD-14, plus a/b variants)
 - Success screen: 2 cases (S-01, S-02)
 - Dialog behavior: 5 cases (D-01 through D-05)
 

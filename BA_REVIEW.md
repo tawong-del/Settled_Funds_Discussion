@@ -112,62 +112,40 @@ For $150.01–$321 (CAD), the client proceeds without a dialog, but the confirm 
 
 ### 4.2 Decide Whether `marginTransferToday` Affects Margin Logic
 
-- If **yes:** Introduce a fourth scenario for amounts between `marginTransferToday` and `marginTransfer`, with different ETA/behavior.
-- If **no:** Remove or clearly mark `marginTransferToday` as unused to avoid dead code and unclear intent.
+Deferred — kept for potential future use. Not changing margin logic at this time.
 
-### 4.3 Correct choose-zero Interest Logic
+### ~~4.3 Correct choose-zero Interest Logic~~ — DONE
 
-Split the choose-zero range:
+Split choose-zero at `marginCash`. New scenario `margin-borrow` added for amounts above cash but within buying power. "Transfer on settlement day" is only available when the amount is within total cash (choose-zero), ensuring the "no interest" promise is always accurate.
 
-- **Above settled, below cash:** Amount ≤ total cash. "Transfer on settlement day" → no interest is correct.
-- **Above cash:** Amount > total cash. Interest still applies on the margin portion. Either restrict "Transfer on settlement day" to amounts ≤ total cash, or update copy to clarify interest applies on the margin borrowing portion.
+### ~~4.4 Clarify Banner and Dialog Copy~~ — DONE
 
-### 4.4 Clarify Banner and Dialog Copy
+All copy updated:
+- choose-zero ETA: "Amount exceeds your settled cash..."
+- Dialog warning: "exceeds your settled cash of $Y"
+- Insufficient-cash banner: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency."
+- Success screen: "Your internal funds transfer is in progress"
 
-| Location | Current | Recommended |
-|----------|---------|-------------|
-| choose-zero ETA | "Amount exceeds your cash balance" | "Amount exceeds your settled cash" |
-| Dialog warning | "exceeds the cash amount of $Y" | "exceeds your settled cash of $Y" |
-| Insufficient-cash banner | "If you don't want to use margin…" | "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| Success screen | "Your transfer funds is in progress" | "Your transfer is in progress" |
+### ~~4.5 Document Combined vs Single-Currency Behavior~~ — DONE
 
-### 4.5 Document Combined vs Single-Currency Behavior
-
-Add to `BUSINESS_LOGIC.md`:
-
-- Why scenario logic uses combined thresholds.
-- Why the insufficient-cash banner uses single-currency thresholds.
-- The resulting windows (e.g., $150.01–$321 CAD) and intended UX.
+Added Section 6.8 to `BUSINESS_LOGIC.md` explaining why scenario logic uses combined thresholds while the multi-currency warning banner uses single-currency thresholds, including the specific windows where the banner appears.
 
 ---
 
-## 5. Proposed Revised Scenario Logic for Margin
+## 5. ~~Proposed Revised Scenario Logic for Margin~~ — IMPLEMENTED (Option A)
 
-### Option A: Decision Tree with Interest-Correct choose-zero
+The implemented logic:
 
 ```
 IF amount <= marginWithoutInterest (combined):
-    → same-day
-    → Confirm: if amount > marginWithoutInterest (single) → amber margin warning
+    → same-day — no dialog, no interest
 ELSE IF amount <= marginCash (combined):
-    → choose-zero
-    → Both options valid:
-        - Instant: interest on unsettled portion
-        - Settlement: no interest (all within actual cash)
+    → choose-zero — dialog with both options (instant or settlement)
 ELSE IF amount <= marginTransfer (combined):
-    → choose-zero (or new scenario: "margin-borrow")
-    → Only "instant" valid, OR "settlement" with clarified copy:
-        - Interest applies on margin borrowing portion regardless of settlement
-        - "Transfer on settlement day" not available or clearly labeled
+    → margin-borrow — no dialog, interest always applies
 ELSE:
     → rejected
 ```
-
-### Option B: Minimal Change (Keep Current Structure)
-
-1. Fix `marginTransferToday` values.
-2. Add a check: if `amount > marginCash` in choose-zero, either disable "Transfer on settlement day" or update copy to warn about margin interest.
-3. Update copy and document the combined vs single-currency behavior.
 
 ---
 
@@ -176,12 +154,12 @@ ELSE:
 | # | Issue | Severity | Action |
 |---|-------|----------|--------|
 | 1 | ~~`marginTransferToday` wrong values~~ | ~~High~~ | **RESOLVED** — corrected to 300, 225, 608, 444 |
-| 2 | `marginTransferToday` unused in logic | Medium | Decide use and document or remove |
-| 3 | choose-zero "no interest" for amounts above cash | High | Split logic or restrict/update wording |
-| 4 | "Transfer funds is" grammar | Low | Change to "Your transfer is in progress" |
-| 5 | "Cash amount" / "cash balance" ambiguity | Medium | Use "settled cash" in copy |
-| 6 | Insufficient-cash banner clarity | Medium | Clarify multi-currency / margin usage |
-| 7 | Combined vs single-currency undocumented | Medium | Document and optionally add input-screen hint |
+| 2 | `marginTransferToday` unused in logic | Medium | **DEFERRED** — kept for future use |
+| 3 | ~~choose-zero "no interest" for amounts above cash~~ | ~~High~~ | **RESOLVED** — split at marginCash, added margin-borrow scenario |
+| 4 | ~~"Transfer funds is" grammar~~ | ~~Low~~ | **RESOLVED** — changed to "Your internal funds transfer is in progress" |
+| 5 | ~~"Cash amount" / "cash balance" ambiguity~~ | ~~Medium~~ | **RESOLVED** — using "settled cash" in copy |
+| 6 | ~~Insufficient-cash banner clarity~~ | ~~Medium~~ | **RESOLVED** — updated to multi-currency wording |
+| 7 | ~~Combined vs single-currency undocumented~~ | ~~Medium~~ | **RESOLVED** — documented in BUSINESS_LOGIC.md Section 6.8 |
 
 ---
 

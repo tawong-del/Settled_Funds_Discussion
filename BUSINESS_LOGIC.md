@@ -158,29 +158,33 @@ Margin accounts have a fundamentally different flow because margin power allows 
 | Threshold | What it represents | Used for |
 |---|---|---|
 | Available to Transfer w/o Interest | Fully settled cash | Determines if transfer is interest-free |
+| Cash Balance | Total actual cash (settled + unsettled) | Determines if "wait for settlement" is valid (no interest) |
 | Available to Transfer | Buying power (max) | Determines if transfer is possible at all |
 
-### 6.2 Current Scenario Logic (code as-is)
+### 6.2 Scenario Logic
 
 All comparisons use the **combined** currency view.
 
 ```
 IF amount <= Available to Transfer w/o Interest (combined):
     → "same-day" — no interest, no dialog
+ELSE IF amount <= Cash Balance (combined):
+    → "choose-zero" — dialog: transfer instantly (interest) or wait for settlement (no interest)
 ELSE IF amount <= Available to Transfer (combined):
-    → "choose-zero" — dialog: transfer instantly (interest) or wait (no interest)
+    → "margin-borrow" — no dialog, interest always applies (using margin borrowing)
 ELSE:
     → "rejected" — blocked
 ```
 
-**Note:** `Available to Transfer Today` ({cad: 300, usd: 225, combinedCad: 608, combinedUsd: 444}) exists in the mocked data but is **NOT currently used** in the margin scenario logic. The code only uses `marginWithoutInterest` and `marginTransfer`. This may be a gap — see Section 7.1.
+**Note:** `Available to Transfer Today` ({cad: 300, usd: 225, combinedCad: 608, combinedUsd: 444}) exists in the mocked data but is **NOT currently used** in the margin scenario logic. It is kept for potential future use.
 
 ### 6.3 Margin Scenarios
 
 | Scenario | Condition (combined view) | Dialog? | Client Action |
 |---|---|---|---|
 | `same-day` | amount <= w/o Interest | No | Transfer proceeds, same day, no interest |
-| `choose-zero` | w/o Interest < amount <= Transfer | Yes | Client picks: instant (interest) or settlement day (no interest) |
+| `choose-zero` | w/o Interest < amount <= Cash Balance | Yes | Client picks: instant (interest) or settlement day (no interest) |
+| `margin-borrow` | Cash Balance < amount <= Transfer | No | Transfer proceeds, same day, interest always applies |
 | `rejected` | amount > Transfer | No | Next button disabled |
 
 ### 6.4 ETA Messages (Input Screen)
@@ -188,12 +192,13 @@ ELSE:
 | Scenario | Message | Color |
 |---|---|---|
 | same-day | "This request will be processed same day." | Green |
-| choose-zero | "Amount exceeds your cash balance. Choose to transfer now with interest or wait for settlement." | Amber |
+| choose-zero | "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement." | Amber |
+| margin-borrow | "Amount exceeds your cash balance. Interest charges will apply." | Amber |
 | rejected | "Amount exceeds available to transfer of $X." | Red |
 
 ### 6.5 Settlement Dialog (choose-zero only)
 
-**Warning banner:** "Your transfer of **$X CAD** exceeds the cash amount of **$Y CAD**. The remaining funds are pending settlement. Please choose how you would like to proceed."
+**Warning banner:** "Your transfer of **$X CAD** exceeds your settled cash of **$Y CAD**. The remaining funds are pending settlement. Please choose how you would like to proceed."
 
 Where:
 - $X = the transfer amount
@@ -205,6 +210,8 @@ Where:
 
 Continue button is **disabled** until the client selects an option.
 
+**Note:** The `margin-borrow` scenario does NOT show a dialog. Since the amount exceeds total cash, the "wait for settlement = no interest" option is not valid, so the client goes directly to the confirm screen.
+
 ### 6.6 Confirm Screen — ETA
 
 | Scenario | Choice | Confirm ETA |
@@ -212,43 +219,49 @@ Continue button is **disabled** until the client selects an option.
 | same-day | N/A | Same day |
 | choose-zero | instant | Same day |
 | choose-zero | settlement | 2-3 business days |
+| margin-borrow | N/A | Same day |
 
 ### 6.7 Confirm Screen — Banners
 
 | Scenario | Choice | Banner Color | Banner Text |
 |---|---|---|---|
 | same-day (amount <= single-currency w/o Interest) | N/A | None | — |
-| same-day (amount > single-currency w/o Interest) | N/A | Amber | "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
-| choose-zero | instant | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing." |
+| same-day (amount > single-currency w/o Interest) | N/A | Amber | "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| choose-zero | instant | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
 | choose-zero | settlement | Green | "You chose to wait for settlement day. No interest charges will apply. Your request will be processed once funds have settled, estimated 2-3 business days." |
+| margin-borrow | N/A | Amber | "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
 
-### 6.8 Insufficient Cash in Specific Currency (same-day with margin power banner)
+### 6.8 Combined vs Single-Currency Threshold Behavior
 
-This is a special sub-scenario within `same-day`. The combined balance has enough settled cash, but the **single-currency** balance does not. The transfer still proceeds without a dialog, but the confirm screen shows an amber banner warning about margin usage.
+The margin scenario logic uses two different threshold scopes for different purposes:
 
-**Condition:** `amount > Available to Transfer w/o Interest (single currency)` AND `amount <= Available to Transfer w/o Interest (combined)`
+- **Combined thresholds** (both currencies converted into the transfer currency) determine which **scenario** applies. This is because the client's total purchasing power spans both CAD and USD balances.
+- **Single-currency thresholds** are used for the **insufficient-cash banner** on the confirm screen. This warns the client when their transfer amount exceeds their balance in the specific transfer currency, meaning FX conversion from the other currency is required.
 
-**Example (CAD transfer):**
-- Combined settled: $321 (combined-cad)
-- Single CAD settled: $150
-- Amount $200: combined says same-day, but $200 > $150 single CAD → amber banner on confirm
+This design creates windows where a transfer is `same-day` (no dialog needed) but the confirm screen still shows an amber banner:
 
-**Windows where this banner appears:**
-- CAD transfer: $150.01 – $321.00
-- USD transfer: $125.01 – $235.00
+| Transfer Currency | Single-currency w/o Interest | Combined w/o Interest | Amber Banner Window |
+|---|---|---|---|
+| CAD | $150 | $321 | $150.01 – $321.00 |
+| USD | $125 | $235 | $125.01 – $235.00 |
+
+In these windows, the combined balance has enough settled cash for a same-day transfer, but the single-currency balance does not — meaning funds from the other currency will be converted via FX.
 
 ### 6.9 MARGIN Example (CAD transfer)
 
-| Amount | vs w/o Interest ($321 combined) | vs Transfer ($811 combined) | Scenario | Dialog? | Confirm Banner |
-|---|---|---|---|---|---|
-| $100 | Within | Within | same-day | No | None ($100 <= $150 single CAD) |
-| $150 | At single boundary | Within | same-day | No | None ($150 <= $150 single CAD) |
-| $200 | Within combined, exceeds single | Within | same-day | No | Amber margin warning ($200 > $150 single CAD) |
-| $321 | At combined boundary | Within | same-day | No | Amber margin warning ($321 > $150 single CAD) |
-| $322 | Exceeds | Within | choose-zero | Yes | Depends on choice |
-| $600 | Exceeds | Within | choose-zero | Yes | Depends on choice |
-| $811 | Exceeds | At boundary | choose-zero | Yes | Depends on choice |
-| $812 | Exceeds | Exceeds | rejected | No | — |
+| Amount | vs w/o Interest ($321 combined) | vs Cash ($524 combined) | vs Transfer ($811 combined) | Scenario | Dialog? | Confirm Banner |
+|---|---|---|---|---|---|---|
+| $100 | Within | Within | Within | same-day | No | None ($100 <= $150 single CAD) |
+| $150 | At single boundary | Within | Within | same-day | No | None ($150 <= $150 single CAD) |
+| $200 | Within combined, exceeds single | Within | Within | same-day | No | Amber: multi-currency warning |
+| $321 | At combined boundary | Within | Within | same-day | No | Amber: multi-currency warning |
+| $322 | Exceeds | Within | Within | choose-zero | Yes | Depends on choice |
+| $500 | Exceeds | Within | Within | choose-zero | Yes | Depends on choice |
+| $524 | Exceeds | At boundary | Within | choose-zero | Yes | Depends on choice |
+| $525 | Exceeds | Exceeds | Within | margin-borrow | No | Amber: interest + multi-currency |
+| $700 | Exceeds | Exceeds | Within | margin-borrow | No | Amber: interest + multi-currency |
+| $811 | Exceeds | Exceeds | At boundary | margin-borrow | No | Amber: interest + multi-currency |
+| $812 | Exceeds | Exceeds | Exceeds | rejected | No | — |
 
 ---
 
@@ -262,21 +275,21 @@ The code defines `marginTransferToday` (Buying Power − Unsettled = {cad: 300, 
 - Should there be a distinction between amounts within Transfer Today vs above it?
 - For TFSA/CASH, Transfer Today determines the ETA (faster vs slower). Should margin have similar behavior?
 
-### 7.2 "choose-zero" name implies zero interest on settlement, but does this hold?
+### ~~7.2 "choose-zero" interest accuracy~~ — RESOLVED
 
-The `choose-zero` scenario covers the entire range from `w/o Interest` ($321 combined CAD) to `Transfer` ($811 combined CAD). For large amounts near the max, the client would be using significant margin borrowing. The banner says "No interest charges will apply" if they wait for settlement — is that accurate for amounts well above the cash balance ($524 combined CAD)?
+The `choose-zero` scenario is now limited to amounts within the total cash balance (`marginCash`). For these amounts, "wait for settlement = no interest" is accurate because the entire transfer is within actual cash. Amounts above cash are handled by the new `margin-borrow` scenario, which always applies interest.
 
-### 7.3 Combined vs single-currency mismatch in scenario boundaries
+### ~~7.3 Combined vs single-currency behavior~~ — DOCUMENTED
 
-The margin scenario logic uses **combined** currency view for thresholds (e.g., combined-cad $321 for w/o Interest). But the insufficient-cash banner uses **single** currency (e.g., cad $150). This creates a window ($150–$321 for CAD) where the transfer is `same-day` (no dialog) but shows a margin warning on confirm. Is this the intended UX?
+This is intentional and now documented in Section 6.8. Combined thresholds determine the scenario; single-currency thresholds trigger the multi-currency warning banner.
 
 ### 7.4 Non-margin Transfer Today is used for ETA but not for blocking
 
 For TFSA/CASH, `Transfer Today` determines the ETA message (faster vs slower), but does NOT block the transfer or trigger a dialog. The client can always transfer up to `Available to Transfer` regardless — the only difference is processing time. Is this correct?
 
-### 7.5 Dialog warning references "cash amount" using combined w/o Interest
+### ~~7.5 Dialog warning terminology~~ — RESOLVED
 
-The dialog warning says: "exceeds the cash amount of **$Y**" where $Y = `marginWithoutInterest` in combined view. This is the settled cash threshold, not the total cash balance (`marginCash`). Is "cash amount" the right term, or should it say "settled cash" or something else?
+The dialog warning now says "exceeds your settled cash of **$Y**" instead of "exceeds the cash amount of **$Y**". This accurately describes that $Y is the settled cash threshold.
 
 ---
 
@@ -294,30 +307,30 @@ The dialog warning says: "exceeds the cash amount of **$Y**" where $Y = `marginW
           │                         │
      Non-Margin                  Margin
           │                         │
-          │               ┌─────────┴──────────┐
-          │               │                    │
-          │          same-day             choose-zero
-          │          (no dialog)          (dialog)
-          │               │                    │
-          │               │         ┌──────────┴──────────┐
-          │               │         │                     │
-          │               │     instant              settlement
-          │               │         │                     │
-          ▼               ▼         ▼                     ▼
-┌─────────────────────────────────────────────────────┐
-│                  CONFIRM SCREEN                      │
-│  From/To accounts, amount, ETA                       │
-│  Margin: optional banner (interest/settlement/       │
-│          insufficient cash warning)                  │
-│  Confirm button                                      │
-└──────────────────────┬──────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│                  SUCCESS SCREEN                      │
-│  "Your transfer funds is in progress"                │
-│  Done button → resets to Input screen                │
-└─────────────────────────────────────────────────────┘
+          │               ┌─────────┴──────────────────────┐
+          │               │                    │             │
+          │          same-day             choose-zero   margin-borrow
+          │          (no dialog)          (dialog)      (no dialog)
+          │               │                    │             │
+          │               │         ┌──────────┴──────┐      │
+          │               │         │                 │      │
+          │               │     instant          settlement  │
+          │               │         │                 │      │
+          ▼               ▼         ▼                 ▼      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  CONFIRM SCREEN                              │
+│  From/To accounts, amount, ETA                               │
+│  Margin: optional banner (interest/settlement/               │
+│          multi-currency warning)                             │
+│  Confirm button                                              │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  SUCCESS SCREEN                              │
+│  "Your internal funds transfer is in progress"               │
+│  Done button → resets to Input screen                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -351,10 +364,12 @@ The dialog warning says: "exceeds the cash amount of **$Y**" where $Y = `marginW
 | # | Transfer Ccy | Amount Range (combined) | Single-ccy check | Scenario | Dialog | Confirm ETA | Confirm Banner |
 |---|---|---|---|---|---|---|---|
 | M1 | CAD | $0.01 – $150 | <= $150 single CAD | same-day | No | Same day | None |
-| M2 | CAD | $150.01 – $321 | > $150 single CAD | same-day | No | Same day | Amber: margin power warning |
-| M3 | CAD | $321.01 – $811 | N/A | choose-zero | Yes | instant: Same day / settlement: 2-3 days | instant: amber interest / settlement: green no interest |
-| M4 | CAD | > $811 | N/A | rejected | No | — | — (blocked) |
-| M5 | USD | $0.01 – $125 | <= $125 single USD | same-day | No | Same day | None |
-| M6 | USD | $125.01 – $235 | > $125 single USD | same-day | No | Same day | Amber: margin power warning |
-| M7 | USD | $235.01 – $592 | N/A | choose-zero | Yes | instant: Same day / settlement: 2-3 days | instant: amber interest / settlement: green no interest |
-| M8 | USD | > $592 | N/A | rejected | No | — | — (blocked) |
+| M2 | CAD | $150.01 – $321 | > $150 single CAD | same-day | No | Same day | Amber: multi-currency warning |
+| M3 | CAD | $321.01 – $524 | N/A | choose-zero | Yes | instant: Same day / settlement: 2-3 days | instant: amber interest / settlement: green no interest |
+| M4 | CAD | $524.01 – $811 | N/A | margin-borrow | No | Same day | Amber: interest + multi-currency |
+| M5 | CAD | > $811 | N/A | rejected | No | — | — (blocked) |
+| M6 | USD | $0.01 – $125 | <= $125 single USD | same-day | No | Same day | None |
+| M7 | USD | $125.01 – $235 | > $125 single USD | same-day | No | Same day | Amber: multi-currency warning |
+| M8 | USD | $235.01 – $383 | N/A | choose-zero | Yes | instant: Same day / settlement: 2-3 days | instant: amber interest / settlement: green no interest |
+| M9 | USD | $383.01 – $592 | N/A | margin-borrow | No | Same day | Amber: interest + multi-currency |
+| M10 | USD | > $592 | N/A | rejected | No | — | — (blocked) |

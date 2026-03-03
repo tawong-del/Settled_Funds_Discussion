@@ -58,7 +58,7 @@ function ccyLabel(v: CurrencyView): string {
   return v === "usd" || v === "combined-usd" ? "USD" : "CAD"
 }
 
-type MarginScenario = "same-day" | "choose-zero" | "rejected"
+type MarginScenario = "same-day" | "choose-zero" | "margin-borrow" | "rejected"
 
 export function TransferView() {
   const [screen, setScreen] = useState<Screen>("input")
@@ -74,7 +74,7 @@ export function TransferView() {
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
 
   const [showDialog, setShowDialog] = useState(false)
-  const [dialogScenario, setDialogScenario] = useState<"choose-zero" | null>(null)
+  const [dialogScenario, setDialogScenario] = useState<"choose-zero" | "margin-borrow" | null>(null)
   const [settlementChoice, setSettlementChoice] = useState<"instant" | "settlement" | null>(null)
 
   const amount = parseFloat(inputAmount)
@@ -139,9 +139,11 @@ export function TransferView() {
   function getMarginScenario(): MarginScenario | null {
     if (isNaN(amount) || amount <= 0) return null
     const noInterest = val(marginWithoutInterest, logicView())
+    const cash = val(marginCash, logicView())
     const max = val(marginTransfer, logicView())
     if (amount <= noInterest) return "same-day"
-    if (amount <= max) return "choose-zero"
+    if (amount <= cash) return "choose-zero"
+    if (amount <= max) return "margin-borrow"
     return "rejected"
   }
 
@@ -151,7 +153,8 @@ export function TransferView() {
       const s = getMarginScenario()
       switch (s) {
         case "same-day": return { text: "This request will be processed same day.", color: "text-green-600" }
-        case "choose-zero": return { text: "Amount exceeds your cash balance. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
+        case "choose-zero": return { text: "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
+        case "margin-borrow": return { text: "Amount exceeds your cash balance. Interest charges will apply.", color: "text-amber-600" }
         case "rejected": return { text: `Amount exceeds available to transfer of ${fmt(val(marginTransfer, logicView()))}.`, color: "text-red-600" }
         default: return null
       }
@@ -170,6 +173,7 @@ export function TransferView() {
     if (fromAccount === "margin") {
       const s = getMarginScenario()
       if (s === "same-day") return "Same day"
+      if (s === "margin-borrow") return "Same day"
       if (s === "choose-zero" && settlementChoice === "instant") return "Same day"
       if (s === "choose-zero" && settlementChoice === "settlement") return "2-3 business days"
       return "2-3 business days"
@@ -213,9 +217,17 @@ export function TransferView() {
   function getMarginChoiceBanner(): { text: string; borderColor: string; bgColor: string; textColor: string } | null {
     if (fromAccount !== "margin") return null
     const s = getMarginScenario()
+    if (s === "margin-borrow") {
+      return {
+        text: "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency.",
+        borderColor: "border-amber-200",
+        bgColor: "bg-amber-50",
+        textColor: "text-amber-800",
+      }
+    }
     if (s === "choose-zero" && settlementChoice === "instant") {
       return {
-        text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing.",
+        text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency.",
         borderColor: "border-amber-200",
         bgColor: "bg-amber-50",
         textColor: "text-amber-800",
@@ -231,7 +243,7 @@ export function TransferView() {
     }
     if (s === "same-day" && !isNaN(amount) && amount > val(marginWithoutInterest, singleCurrencyView())) {
       return {
-        text: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing.",
+        text: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency.",
         borderColor: "border-amber-200",
         bgColor: "bg-amber-50",
         textColor: "text-amber-800",
@@ -251,6 +263,11 @@ export function TransferView() {
         setDialogScenario(s)
         setSettlementChoice(null)
         setShowDialog(true)
+        return
+      }
+      if (s === "margin-borrow") {
+        setSettlementChoice("instant")
+        setScreen("confirm")
         return
       }
     } else {
@@ -318,10 +335,10 @@ export function TransferView() {
           </svg>
 
           <h2 className="mb-3 text-center text-xl font-semibold text-foreground">
-            Your transfer funds is in progress
+            Your internal funds transfer is in progress
           </h2>
           <p className="text-center text-sm leading-relaxed text-muted-foreground">
-            You can review the progress in your transfer funds history.
+            You can review the progress in your internal funds transfer history.
           </p>
         </div>
 
@@ -690,7 +707,7 @@ export function TransferView() {
               <p className="text-sm leading-relaxed text-amber-900">
                 Your transfer of{" "}
                 <strong>{fmt(amount)} {ccy}</strong>{" "}
-                exceeds the cash amount of{" "}
+                exceeds your settled cash of{" "}
                 <strong>{fmt(noInterestVal)} {ccy}</strong>.
                 The remaining funds are pending settlement. Please choose how you would like to proceed.
               </p>
