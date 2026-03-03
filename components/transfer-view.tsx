@@ -100,17 +100,11 @@ export function TransferView() {
 
   function getFromRows(): RowData[] {
     const t = getTransferThreshold()
-    const u = getUnsettledThreshold()
     const rows: RowData[] = [
       {
         label: "Available to transfer",
         usd: fmt(t.usd), cad: fmt(t.cad),
         combinedCad: fmt(t.combinedCad), combinedUsd: fmt(t.combinedUsd),
-      },
-      {
-        label: "Unsettled cash",
-        usd: fmt(u.usd), cad: fmt(u.cad),
-        combinedCad: fmt(u.combinedCad), combinedUsd: fmt(u.combinedUsd),
       },
     ]
     if (fromAccount === "margin") {
@@ -168,9 +162,8 @@ export function TransferView() {
     if (fromAccount === "margin") {
       const s = getMarginScenario()
       if (s === "same-day") return "Same day"
-      if (s === "interest-only") return "Same day"
-      if (s === "choose" && settlementChoice === "instant") return "Same day"
-      if (s === "choose" && settlementChoice === "settlement") return "2-3 business days"
+      if ((s === "interest-only" || s === "choose") && settlementChoice === "instant") return "Same day"
+      if ((s === "interest-only" || s === "choose") && settlementChoice === "settlement") return "2-3 business days"
       return "2-3 business days"
     }
     const todayLimit = val(getTodayThreshold(), fromCurrencyView)
@@ -184,7 +177,7 @@ export function TransferView() {
   function getMarginChoiceBanner(): { text: string; borderColor: string; bgColor: string; textColor: string } | null {
     if (fromAccount !== "margin") return null
     const s = getMarginScenario()
-    if (s === "interest-only" || (s === "choose" && settlementChoice === "instant")) {
+    if ((s === "interest-only" || s === "choose") && settlementChoice === "instant") {
       return {
         text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash to perform this Internal Cash Transfer.",
         borderColor: "border-amber-200",
@@ -192,7 +185,7 @@ export function TransferView() {
         textColor: "text-amber-800",
       }
     }
-    if (s === "choose" && settlementChoice === "settlement") {
+    if ((s === "choose" || s === "interest-only") && settlementChoice === "settlement") {
       return {
         text: "You chose to transfer on settlement day. Your request will be processed once funds have settled, estimated 2-3 business days.",
         borderColor: "border-green-200",
@@ -629,23 +622,7 @@ export function TransferView() {
               </p>
             </div>
 
-            {dialogScenario === "interest-only" && (
-              <div className="space-y-3 mb-5">
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#1a8d1a] bg-[#1a8d1a]/5 p-4">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-[#1a8d1a]">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#1a8d1a]" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Transfer instantly</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                      Accept the interest charge on unsettled funds and transfer the full amount now.
-                    </p>
-                  </div>
-                </label>
-              </div>
-            )}
-
-            {dialogScenario === "choose" && (
+            {(dialogScenario === "interest-only" || dialogScenario === "choose") && (
               <div className="space-y-3 mb-5">
                 <label
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40 ${
@@ -704,7 +681,7 @@ export function TransferView() {
               <button
                 type="button"
                 onClick={handleDialogProceed}
-                disabled={dialogScenario === "choose" && !settlementChoice}
+                disabled={!settlementChoice}
                 className="w-full rounded-full bg-[#1a8d1a] py-3 text-center text-sm font-semibold text-[#ffffff] disabled:opacity-40"
               >
                 Continue
