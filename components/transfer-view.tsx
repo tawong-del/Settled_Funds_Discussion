@@ -23,15 +23,16 @@ interface Thresholds {
   combinedUsd: number
 }
 
-const tfsaTransfer: Thresholds = { cad: 300, usd: 300, combinedCad: 600, combinedUsd: 550 }
-const tfsaTransferToday: Thresholds = { cad: 280, usd: 280, combinedCad: 560, combinedUsd: 510 }
+// FX rate: 1 USD = 1.37 CAD / 1 CAD = 0.73 USD
+const tfsaTransfer: Thresholds = { cad: 350, usd: 200, combinedCad: 624, combinedUsd: 456 }
+const tfsaTransferToday: Thresholds = { cad: 325, usd: 185, combinedCad: 578, combinedUsd: 422 }
 
-const cashTransfer: Thresholds = { cad: 300, usd: 300, combinedCad: 600, combinedUsd: 550 }
-const cashTransferToday: Thresholds = { cad: 290, usd: 290, combinedCad: 580, combinedUsd: 530 }
+const cashTransfer: Thresholds = { cad: 300, usd: 250, combinedCad: 643, combinedUsd: 469 }
+const cashTransferToday: Thresholds = { cad: 290, usd: 242, combinedCad: 622, combinedUsd: 454 }
 
-const marginTransfer: Thresholds = { cad: 500, usd: 500, combinedCad: 1000, combinedUsd: 920 }
-const marginTransferToday: Thresholds = { cad: 375, usd: 375, combinedCad: 750, combinedUsd: 690 }
-const marginWithoutInterest: Thresholds = { cad: 175, usd: 175, combinedCad: 350, combinedUsd: 320 }
+const marginTransfer: Thresholds = { cad: 400, usd: 300, combinedCad: 811, combinedUsd: 592 }
+const marginTransferToday: Thresholds = { cad: 300, usd: 225, combinedCad: 608, combinedUsd: 444 }
+const marginWithoutInterest: Thresholds = { cad: 150, usd: 125, combinedCad: 321, combinedUsd: 235 }
 
 function val(t: Thresholds, v: CurrencyView): number {
   switch (v) {
