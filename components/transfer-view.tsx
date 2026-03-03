@@ -436,9 +436,6 @@ export function TransferView() {
             <strong className="text-foreground">{fmt(amount)} {ccy}</strong>{" "}
             will be held from your available balance until the transfer is completed.
           </p>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Transfer requests submitted outside of business hours or on holidays will be processed the next business day.
-          </p>
         </div>
 
         <div className="flex-1" />
