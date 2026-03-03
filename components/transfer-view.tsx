@@ -597,7 +597,7 @@ export function TransferView() {
               <p className="text-sm leading-relaxed text-amber-900">
                 Your transfer of{" "}
                 <strong>{fmt(amount)} {ccy}</strong>{" "}
-                exceeds the available-to-transfer amount of{" "}
+                exceeds the cash amount of{" "}
                 <strong>{fmt(noInterestVal)} {ccy}</strong>.
                 The remaining funds are pending settlement. Please choose how you would like to proceed.
               </p>
