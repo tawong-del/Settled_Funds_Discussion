@@ -207,32 +207,6 @@ export function TransferView() {
   }
 
   function getMarginChoiceBanner(): { text: string; borderColor: string; bgColor: string; textColor: string } | null {
-    if (fromAccount !== "margin") return null
-    const s = getMarginScenario()
-    if (s === "margin-borrow") {
-      return {
-        text: "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency.",
-        borderColor: "border-amber-200",
-        bgColor: "bg-amber-50",
-        textColor: "text-amber-800",
-      }
-    }
-    if (s === "choose-zero" && settlementChoice === "instant") {
-      return {
-        text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency.",
-        borderColor: "border-amber-200",
-        bgColor: "bg-amber-50",
-        textColor: "text-amber-800",
-      }
-    }
-    if (s === "choose-zero" && settlementChoice === "settlement") {
-      return {
-        text: "You chose to wait for settlement day. No interest charges will apply. Your request will be processed once funds have settled, estimated 2-3 business days.",
-        borderColor: "border-green-200",
-        bgColor: "bg-green-50",
-        textColor: "text-green-800",
-      }
-    }
     return null
   }
 
