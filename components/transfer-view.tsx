@@ -179,7 +179,7 @@ export function TransferView() {
     const s = getMarginScenario()
     if ((s === "choose-zero" || s === "choose-reduced") && settlementChoice === "instant") {
       return {
-        text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash to perform this Internal Cash Transfer.",
+        text: "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing.",
         borderColor: "border-amber-200",
         bgColor: "bg-amber-50",
         textColor: "text-amber-800",
