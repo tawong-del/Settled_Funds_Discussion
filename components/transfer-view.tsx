@@ -120,9 +120,9 @@ export function TransferView() {
     ]
     if (fromAccount === "margin") {
       rows.push({
-        label: "Cash",
-        usd: fmt(marginCash.usd), cad: fmt(marginCash.cad),
-        combinedCad: fmt(marginCash.combinedCad), combinedUsd: fmt(marginCash.combinedUsd),
+        label: "Avail. to transfer without interest",
+        usd: fmt(marginWithoutInterest.usd), cad: fmt(marginWithoutInterest.cad),
+        combinedCad: fmt(marginWithoutInterest.combinedCad), combinedUsd: fmt(marginWithoutInterest.combinedUsd),
       })
     }
     return rows
@@ -138,8 +138,8 @@ export function TransferView() {
 
   function getMarginScenario(): MarginScenario | null {
     if (isNaN(amount) || amount <= 0) return null
-    const noInterest = val(marginWithoutInterest, logicView())
-    const cash = val(marginCash, logicView())
+    const noInterest = val(marginWithoutInterest, singleCurrencyView())
+    const cash = val(marginCash, singleCurrencyView())
     const max = val(marginTransfer, logicView())
     if (amount <= noInterest) return "same-day"
     if (amount <= cash) return "choose-zero"
@@ -152,20 +152,21 @@ export function TransferView() {
     if (fromAccount === "margin") {
       const s = getMarginScenario()
       switch (s) {
-        case "same-day": return { text: "This request will be processed same day.", color: "text-green-600" }
-        case "choose-zero": return { text: "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
-        case "margin-borrow": return { text: "Amount exceeds your cash balance. Interest charges will apply.", color: "text-amber-600" }
+        case "same-day": return { text: "This request will be processed same day.", color: "text-muted-foreground" }
+        case "choose-zero": return null
+        case "margin-borrow": return { text: "This request will be processed same day.", color: "text-muted-foreground" }
         case "rejected": return { text: `Amount exceeds available to transfer of ${fmt(val(marginTransfer, logicView()))}.`, color: "text-red-600" }
         default: return null
       }
     }
     const todayLimit = val(getTodayThreshold(), logicView())
+    const singleTodayLimit = val(getTodayThreshold(), singleCurrencyView())
     const maxLimit = val(getTransferThreshold(), logicView())
     if (amount <= todayLimit) {
-      if (fromAccount === "cash") return { text: "This request will be processed same day.", color: "text-green-600" }
-      return { text: "This request will take between 1-2 business days.", color: "text-amber-600" }
+      if (fromAccount === "cash" && amount <= singleTodayLimit) return { text: "This request will be processed same day.", color: "text-muted-foreground" }
+      return { text: "This request will take between 1-2 business days.", color: "text-muted-foreground" }
     }
-    if (amount <= maxLimit) return { text: "This request will take between 2-3 business days.", color: "text-amber-600" }
+    if (amount <= maxLimit) return { text: "This request will take between 2-3 business days.", color: "text-muted-foreground" }
     return { text: `Amount exceeds available to transfer of ${fmt(maxLimit)}.`, color: "text-red-600" }
   }
 
@@ -179,8 +180,9 @@ export function TransferView() {
       return "2-3 business days"
     }
     const todayLimit = val(getTodayThreshold(), logicView())
+    const singleTodayLimit = val(getTodayThreshold(), singleCurrencyView())
     if (amount <= todayLimit) {
-      if (fromAccount === "cash") return "Same day"
+      if (fromAccount === "cash" && amount <= singleTodayLimit) return "Same day"
       return "1-2 business days"
     }
     return "2-3 business days"
@@ -190,7 +192,6 @@ export function TransferView() {
     if (fromAccount === "margin" || isNaN(amount) || amount <= 0) return []
     const banners: Array<{ text: string; borderColor: string; bgColor: string; textColor: string }> = []
     const singleTransfer = val(getTransferThreshold(), singleCurrencyView())
-    const combinedToday = val(getTodayThreshold(), logicView())
     const otherCcy = transferCurrency === "cad" ? "USD" : "CAD"
 
     if (amount > singleTransfer) {
@@ -199,15 +200,6 @@ export function TransferView() {
         borderColor: "border-blue-200",
         bgColor: "bg-blue-50",
         textColor: "text-blue-800",
-      })
-    }
-
-    if (amount > combinedToday) {
-      banners.push({
-        text: "Your transfer includes unsettled funds. We will need to wait for the funds to be settled before processing this transfer. Estimated 2-3 business days.",
-        borderColor: "border-amber-200",
-        bgColor: "bg-amber-50",
-        textColor: "text-amber-800",
       })
     }
 
@@ -239,14 +231,6 @@ export function TransferView() {
         borderColor: "border-green-200",
         bgColor: "bg-green-50",
         textColor: "text-green-800",
-      }
-    }
-    if (s === "same-day" && !isNaN(amount) && amount > val(marginWithoutInterest, singleCurrencyView())) {
-      return {
-        text: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency.",
-        borderColor: "border-amber-200",
-        bgColor: "bg-amber-50",
-        textColor: "text-amber-800",
       }
     }
     return null
@@ -302,7 +286,7 @@ export function TransferView() {
 
   const eta = getEtaMessage()
   const isRejected = eta?.color === "text-red-600"
-  const noInterestVal = val(marginWithoutInterest, logicView())
+  const noInterestVal = val(marginWithoutInterest, singleCurrencyView())
 
   // ══════════════════════════════════════
   // SCREEN: Success
@@ -429,6 +413,29 @@ export function TransferView() {
             <span className="text-sm text-muted-foreground">Estimated processing</span>
             <p className="text-sm font-semibold text-foreground">{confirmEta}</p>
           </div>
+
+          {/* Margin interest details */}
+          {fromAccount === "margin" && (() => {
+            const s = getMarginScenario()
+            const showInterest = s === "margin-borrow" || (s === "choose-zero" && settlementChoice === "instant")
+            if (!showInterest) return null
+            const subjectToInterest = Math.max(0, amount - val(marginWithoutInterest, singleCurrencyView()))
+            const interestPerDay = subjectToInterest * 0.0001
+            return (
+              <>
+                <div className="mx-4 border-t border-border" />
+                <div className="flex items-center justify-between px-4 py-4">
+                  <span className="text-sm text-muted-foreground">Amount subject to interest</span>
+                  <p className="text-sm font-semibold text-foreground">{fmt(subjectToInterest)} {ccy}</p>
+                </div>
+                <div className="mx-4 border-t border-border" />
+                <div className="flex items-center justify-between px-4 py-4">
+                  <span className="text-sm text-muted-foreground">Estimated interest per day</span>
+                  <p className="text-sm font-semibold text-foreground">{fmt(interestPerDay)} {ccy}</p>
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         {/* Margin choice reminder banner */}

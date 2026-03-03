@@ -6,9 +6,10 @@
 
 - **Available to Transfer** = Buying Power. The maximum a client can transfer.
 - **Available to Transfer Today** = Buying Power - Unsettled Cash. How much can transfer without waiting for settlement.
-- **Available to Transfer without Interest** = Cash Balance - Unsettled Cash. (Margin only) Fully settled cash — no interest applies.
+- **Available to Transfer without Interest** = Cash Balance - Unsettled Cash. (Margin only) Fully settled cash -- no interest applies.
 - **Cash Balance** = Available to Transfer without Interest + Unsettled Cash. (Margin only) Total cash in the account.
 - **FX Rate:** 1 USD = 1.37 CAD / 1 CAD = 0.73 USD
+- **Interest Rate:** 0.01% per day on the amount subject to interest
 
 ---
 
@@ -36,8 +37,8 @@
 |---|---|---|---|---|
 | Available to Transfer | $400 | $300 | $811 | $592 |
 | Available to Transfer Today | $300 | $225 | $608 | $444 |
-| Available to Transfer without Interest | $150 | $125 | $321 | $235 |
 | Cash Balance | $250 | $200 | $524 | $383 |
+| Avail. to Transfer without Interest | $150 | $125 | $321 | $235 |
 | Unsettled Cash | $100 | $75 | $203 | $148 |
 
 ---
@@ -48,223 +49,222 @@
 
 All comparisons use the **combined** currency view matching the transfer currency.
 
-- **amount <= Available to Transfer Today** → Fast ETA (TFSA: 1-2 days, CASH: Same day)
-- **Available to Transfer Today < amount <= Available to Transfer** → Slower ETA (2-3 days)
-- **amount > Available to Transfer** → Rejected, Next button disabled
+- **amount <= Available to Transfer Today (combined)** -- Fast ETA:
+  - CASH: "Same day" only if **also** amount <= Available to Transfer Today (single currency). Otherwise "1-2 business days" (FX needed).
+  - TFSA: "1-2 business days"
+- **Available to Transfer Today (combined) < amount <= Available to Transfer (combined)** -- "2-3 business days"
+- **amount > Available to Transfer (combined)** -- Rejected
 
-**Confirm screen banners (independent checks, can appear together):**
+**Confirm screen banners:**
 
-- **FX message** (blue) — appears when `amount > Available to Transfer (single currency)`. The account lacks sufficient funds in the transfer currency; the remaining amount will be converted from the other currency.
-- **Unsettled cash message** (amber) — appears when `amount > Available to Transfer Today (combined)`. The transfer taps into unsettled funds; must wait for settlement to process.
+- **FX message** (blue) -- appears when `amount > Available to Transfer (single currency)`.
 
 ### Margin
 
-All comparisons use the **combined** currency view matching the transfer currency.
+Interest thresholds use **single-currency** values. Rejection uses **combined** (total buying power).
 
-- **amount <= Available to Transfer without Interest (combined)** → "same-day", no dialog
-  - Sub-check on confirm screen: if amount > Available to Transfer without Interest **(single currency)** → amber multi-currency warning banner
-- **Available to Transfer without Interest (combined) < amount <= Cash Balance (combined)** → "choose-zero", dialog appears with two options (instant / settlement)
-- **Cash Balance (combined) < amount <= Available to Transfer (combined)** → "margin-borrow", no dialog, interest always applies
-- **amount > Available to Transfer (combined)** → Rejected, Next button disabled
+- **amount <= Avail. to Transfer without Interest (single currency)** -- "same-day", no interest
+- **Avail. to Transfer without Interest < amount <= Cash Balance (single currency)** -- "choose-zero": dialog with instant/settlement choice. No ETA shown on input screen.
+- **Cash Balance (single currency) < amount <= Available to Transfer (combined)** -- "margin-borrow": same day, interest always applies, no dialog
+- **amount > Available to Transfer (combined)** -- Rejected
+
+**Confirm screen:**
+
+- Interest details (Amount subject to interest + Estimated interest per day) shown when interest applies: `margin-borrow` always, `choose-zero` + instant.
+- Banner shown for margin-borrow and choose-zero scenarios.
 
 ---
 
-## Test Cases — TFSA
+## Test Cases -- TFSA
 
 ### TFSA - CAD Transfer
 
-Thresholds used: Available to Transfer Today = **$578** (combined CAD), Available to Transfer = **$624** (combined CAD)
+Thresholds: Today = **$578** (combined CAD), Max = **$624** (combined CAD), Single CAD max = **$350**
 
-| TC# | Amount | Scenario | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|---|
-| T-CAD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
-| T-CAD-02 | $100 | amount <= Available to Transfer Today ($578) | "This request will take between 1-2 business days." | Amber | Enabled | No | 1-2 business days | None |
-| T-CAD-03 | $578 | amount = Available to Transfer Today (boundary) | "This request will take between 1-2 business days." | Amber | Enabled | No | 1-2 business days | Blue: FX message ($578 > $350 single CAD) |
-| T-CAD-04 | $578.01 | amount just above Available to Transfer Today | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| T-CAD-05 | $600 | Available to Transfer Today < amount < Available to Transfer | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| T-CAD-06 | $624 | amount = Available to Transfer (boundary) | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| T-CAD-07 | $624.01 | amount just above Available to Transfer | "Amount exceeds available to transfer of $624.00." | Red | Disabled | No | — | — |
-| T-CAD-08 | $1000 | amount well above Available to Transfer | "Amount exceeds available to transfer of $624.00." | Red | Disabled | No | — | — |
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Confirm Banner |
+|---|---|---|---|---|---|---|
+| T-CAD-01 | $0 | No message | -- | Disabled | -- | -- |
+| T-CAD-02 | $100 | 1-2 business days | Grey | Enabled | 1-2 business days | None |
+| T-CAD-03 | $350 | 1-2 business days | Grey | Enabled | 1-2 business days | None |
+| T-CAD-04 | $351 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX ($351 > $350 single CAD) |
+| T-CAD-05 | $578 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX |
+| T-CAD-06 | $578.01 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| T-CAD-07 | $624 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| T-CAD-08 | $624.01 | Exceeds $624.00 | Red | Disabled | -- | -- |
+| T-CAD-09 | $1000 | Exceeds $624.00 | Red | Disabled | -- | -- |
 
 ### TFSA - USD Transfer
 
-Thresholds used: Available to Transfer Today = **$422** (combined USD), Available to Transfer = **$456** (combined USD)
+Thresholds: Today = **$422** (combined USD), Max = **$456** (combined USD), Single USD max = **$200**
 
-| TC# | Amount | Scenario | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|---|
-| T-USD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
-| T-USD-02 | $100 | amount <= Available to Transfer Today ($422) | "This request will take between 1-2 business days." | Amber | Enabled | No | 1-2 business days | None |
-| T-USD-03 | $422 | amount = Available to Transfer Today (boundary) | "This request will take between 1-2 business days." | Amber | Enabled | No | 1-2 business days | Blue: FX message ($422 > $200 single USD) |
-| T-USD-04 | $422.01 | amount just above Available to Transfer Today | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| T-USD-05 | $440 | Available to Transfer Today < amount < Available to Transfer | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| T-USD-06 | $456 | amount = Available to Transfer (boundary) | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| T-USD-07 | $456.01 | amount just above Available to Transfer | "Amount exceeds available to transfer of $456.00." | Red | Disabled | No | — | — |
-| T-USD-08 | $1000 | amount well above Available to Transfer | "Amount exceeds available to transfer of $456.00." | Red | Disabled | No | — | — |
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Confirm Banner |
+|---|---|---|---|---|---|---|
+| T-USD-01 | $0 | No message | -- | Disabled | -- | -- |
+| T-USD-02 | $100 | 1-2 business days | Grey | Enabled | 1-2 business days | None |
+| T-USD-03 | $200 | 1-2 business days | Grey | Enabled | 1-2 business days | None |
+| T-USD-04 | $201 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX ($201 > $200 single USD) |
+| T-USD-05 | $422 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX |
+| T-USD-06 | $422.01 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| T-USD-07 | $456 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| T-USD-08 | $456.01 | Exceeds $456.00 | Red | Disabled | -- | -- |
+| T-USD-09 | $1000 | Exceeds $456.00 | Red | Disabled | -- | -- |
 
 ---
 
-## Test Cases — CASH
+## Test Cases -- CASH
 
 ### CASH - CAD Transfer
 
-Thresholds used: Available to Transfer Today = **$622** (combined CAD), Available to Transfer = **$643** (combined CAD)
+Thresholds: Today = **$622** (combined CAD), Max = **$643** (combined CAD), Single CAD today = **$290**, Single CAD max = **$300**
 
-| TC# | Amount | Scenario | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|---|
-| C-CAD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
-| C-CAD-02 | $100 | amount <= Available to Transfer Today ($622) | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| C-CAD-03 | $622 | amount = Available to Transfer Today (boundary) | "This request will be processed same day." | Green | Enabled | No | Same day | Blue: FX message ($622 > $300 single CAD) |
-| C-CAD-04 | $622.01 | amount just above Available to Transfer Today | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| C-CAD-05 | $630 | Available to Transfer Today < amount < Available to Transfer | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| C-CAD-06 | $643 | amount = Available to Transfer (boundary) | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| C-CAD-07 | $643.01 | amount just above Available to Transfer | "Amount exceeds available to transfer of $643.00." | Red | Disabled | No | — | — |
-| C-CAD-08 | $1000 | amount well above Available to Transfer | "Amount exceeds available to transfer of $643.00." | Red | Disabled | No | — | — |
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Confirm Banner |
+|---|---|---|---|---|---|---|
+| C-CAD-01 | $0 | No message | -- | Disabled | -- | -- |
+| C-CAD-02 | $100 | Same day | Grey | Enabled | Same day | None |
+| C-CAD-03 | $290 | Same day | Grey | Enabled | Same day | None |
+| C-CAD-04 | $291 | 1-2 business days | Grey | Enabled | 1-2 business days | None |
+| C-CAD-05 | $301 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX ($301 > $300 single CAD) |
+| C-CAD-06 | $622 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX |
+| C-CAD-07 | $622.01 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| C-CAD-08 | $643 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| C-CAD-09 | $643.01 | Exceeds $643.00 | Red | Disabled | -- | -- |
+| C-CAD-10 | $1000 | Exceeds $643.00 | Red | Disabled | -- | -- |
 
 ### CASH - USD Transfer
 
-Thresholds used: Available to Transfer Today = **$454** (combined USD), Available to Transfer = **$469** (combined USD)
+Thresholds: Today = **$454** (combined USD), Max = **$469** (combined USD), Single USD today = **$242**, Single USD max = **$250**
 
-| TC# | Amount | Scenario | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|---|
-| C-USD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
-| C-USD-02 | $100 | amount <= Available to Transfer Today ($454) | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| C-USD-03 | $454 | amount = Available to Transfer Today (boundary) | "This request will be processed same day." | Green | Enabled | No | Same day | Blue: FX message ($454 > $250 single USD) |
-| C-USD-04 | $454.01 | amount just above Available to Transfer Today | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| C-USD-05 | $460 | Available to Transfer Today < amount < Available to Transfer | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| C-USD-06 | $469 | amount = Available to Transfer (boundary) | "This request will take between 2-3 business days." | Amber | Enabled | No | 2-3 business days | Blue: FX message + Amber: Unsettled cash message |
-| C-USD-07 | $469.01 | amount just above Available to Transfer | "Amount exceeds available to transfer of $469.00." | Red | Disabled | No | — | — |
-| C-USD-08 | $1000 | amount well above Available to Transfer | "Amount exceeds available to transfer of $469.00." | Red | Disabled | No | — | — |
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Confirm Banner |
+|---|---|---|---|---|---|---|
+| C-USD-01 | $0 | No message | -- | Disabled | -- | -- |
+| C-USD-02 | $100 | Same day | Grey | Enabled | Same day | None |
+| C-USD-03 | $242 | Same day | Grey | Enabled | Same day | None |
+| C-USD-04 | $243 | 1-2 business days | Grey | Enabled | 1-2 business days | None |
+| C-USD-05 | $251 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX ($251 > $250 single USD) |
+| C-USD-06 | $454 | 1-2 business days | Grey | Enabled | 1-2 business days | Blue: FX |
+| C-USD-07 | $454.01 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| C-USD-08 | $469 | 2-3 business days | Grey | Enabled | 2-3 business days | Blue: FX |
+| C-USD-09 | $469.01 | Exceeds $469.00 | Red | Disabled | -- | -- |
+| C-USD-10 | $1000 | Exceeds $469.00 | Red | Disabled | -- | -- |
 
 ---
 
-## Test Cases — MARGIN
+## Test Cases -- MARGIN
 
 ### MARGIN - CAD Transfer
 
-Thresholds used:
-- Available to Transfer without Interest = **$150** (single CAD) / **$321** (combined CAD)
+Thresholds (interest = single currency, rejection = combined):
+- Avail. to Transfer without Interest = **$150** (single CAD)
+- Cash Balance = **$250** (single CAD)
 - Available to Transfer = **$811** (combined CAD)
-- Cash Balance = **$524** (combined CAD)
 
-#### Scenario: same-day (amount <= $321 combined CAD)
+#### same-day (amount <= $150)
 
-| TC# | Amount | Sub-check | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|---|
-| M-CAD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
-| M-CAD-02 | $100 | $100 <= $150 single CAD | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| M-CAD-03 | $150 | $150 = $150 single CAD (boundary) | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| M-CAD-04 | $150.01 | $150.01 > $150 single CAD, but <= $321 combined CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-CAD-05 | $200 | $200 > $150 single CAD, but <= $321 combined CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-CAD-06 | $321 | $321 = $321 combined CAD (boundary), $321 > $150 single CAD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Confirm Banner | Interest Details |
+|---|---|---|---|---|---|---|---|
+| M-CAD-01 | $0 | No message | -- | Disabled | -- | -- | -- |
+| M-CAD-02 | $100 | Same day | Grey | Enabled | Same day | None | None |
+| M-CAD-03 | $150 | Same day | Grey | Enabled | Same day | None | None |
 
-#### Scenario: choose-zero ($321 < amount <= $524 combined CAD)
+#### choose-zero ($150 < amount <= $250) -- dialog on Next
 
-Each test case has two sub-paths: **instant** and **settlement**.
-
-| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Dialog Warning Text |
-|---|---|---|---|---|---|---|
-| M-CAD-07 | $321.01 | "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement." | Amber | Enabled | Yes | "Your transfer of $321.01 CAD exceeds your settled cash of $321.00 CAD. The remaining funds are pending settlement. Please choose how you would like to proceed." |
-| M-CAD-08 | $400 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $400.00 CAD exceeds your settled cash of $321.00 CAD..." |
-| M-CAD-09 | $524 | (same ETA message, boundary) | Amber | Enabled | Yes | "Your transfer of $524.00 CAD exceeds your settled cash of $321.00 CAD..." |
-
-**Confirm screen outcomes for each choose-zero test case above:**
-
-| TC# | Choice | Confirm ETA | Confirm Banner Color | Confirm Banner Text |
+| TC# | Amount | Input ETA | Next | Dialog? |
 |---|---|---|---|---|
-| M-CAD-07a | instant | Same day | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-CAD-07b | settlement | 2-3 business days | Green | "You chose to wait for settlement day. No interest charges will apply. Your request will be processed once funds have settled, estimated 2-3 business days." |
-| M-CAD-08a | instant | Same day | Amber | (same as M-CAD-07a) |
-| M-CAD-08b | settlement | 2-3 business days | Green | (same as M-CAD-07b) |
-| M-CAD-09a | instant | Same day | Amber | (same as M-CAD-07a) |
-| M-CAD-09b | settlement | 2-3 business days | Green | (same as M-CAD-07b) |
+| M-CAD-04 | $150.01 | No message | Enabled | Yes |
+| M-CAD-05 | $200 | No message | Enabled | Yes |
+| M-CAD-06 | $250 | No message | Enabled | Yes |
 
-#### Scenario: margin-borrow ($524 < amount <= $811 combined CAD)
+Confirm outcomes:
 
-No dialog. Interest always applies. Goes directly to confirm screen.
+| TC# | Choice | Confirm ETA | Banner | Subj. to Interest | Est. Interest/Day |
+|---|---|---|---|---|---|
+| M-CAD-04a | instant | Same day | Amber | $0.01 | $0.00 |
+| M-CAD-04b | settlement | 2-3 business days | Green | -- | -- |
+| M-CAD-05a | instant | Same day | Amber | $50.00 | $0.01 |
+| M-CAD-05b | settlement | 2-3 business days | Green | -- | -- |
+| M-CAD-06a | instant | Same day | Amber | $100.00 | $0.01 |
+| M-CAD-06b | settlement | 2-3 business days | Green | -- | -- |
 
-| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|
-| M-CAD-10 | $524.01 | "Amount exceeds your cash balance. Interest charges will apply." | Amber | Enabled | No | Same day | Amber: "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-CAD-11 | $700 | (same ETA message) | Amber | Enabled | No | Same day | Amber: (same as M-CAD-10) |
-| M-CAD-12 | $811 | (same ETA message, boundary) | Amber | Enabled | No | Same day | Amber: (same as M-CAD-10) |
+#### margin-borrow ($250 < amount <= $811) -- no dialog, interest always
 
-#### Scenario: rejected (amount > $811 combined CAD)
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Banner | Subj. to Interest | Est. Interest/Day |
+|---|---|---|---|---|---|---|---|---|
+| M-CAD-07 | $250.01 | Same day | Grey | Enabled | Same day | Amber | $100.01 | $0.01 |
+| M-CAD-08 | $400 | Same day | Grey | Enabled | Same day | Amber | $250.00 | $0.03 |
+| M-CAD-09 | $700 | Same day | Grey | Enabled | Same day | Amber | $550.00 | $0.06 |
+| M-CAD-10 | $811 | Same day | Grey | Enabled | Same day | Amber | $661.00 | $0.07 |
 
-| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|
-| M-CAD-13 | $811.01 | "Amount exceeds available to transfer of $811.00." | Red | Disabled | No | — | — |
-| M-CAD-14 | $1000 | "Amount exceeds available to transfer of $811.00." | Red | Disabled | No | — | — |
+#### rejected (amount > $811)
+
+| TC# | Amount | Input ETA | ETA Color | Next |
+|---|---|---|---|---|
+| M-CAD-11 | $811.01 | Exceeds $811.00 | Red | Disabled |
+| M-CAD-12 | $1000 | Exceeds $811.00 | Red | Disabled |
 
 ---
 
 ### MARGIN - USD Transfer
 
-Thresholds used:
-- Available to Transfer without Interest = **$125** (single USD) / **$235** (combined USD)
+Thresholds (interest = single currency, rejection = combined):
+- Avail. to Transfer without Interest = **$125** (single USD)
+- Cash Balance = **$200** (single USD)
 - Available to Transfer = **$592** (combined USD)
-- Cash Balance = **$383** (combined USD)
 
-#### Scenario: same-day (amount <= $235 combined USD)
+#### same-day (amount <= $125)
 
-| TC# | Amount | Sub-check | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Confirm Banner | Interest Details |
+|---|---|---|---|---|---|---|---|
+| M-USD-01 | $0 | No message | -- | Disabled | -- | -- | -- |
+| M-USD-02 | $50 | Same day | Grey | Enabled | Same day | None | None |
+| M-USD-03 | $125 | Same day | Grey | Enabled | Same day | None | None |
+
+#### choose-zero ($125 < amount <= $200) -- dialog on Next
+
+| TC# | Amount | Input ETA | Next | Dialog? |
+|---|---|---|---|---|
+| M-USD-04 | $125.01 | No message | Enabled | Yes |
+| M-USD-05 | $175 | No message | Enabled | Yes |
+| M-USD-06 | $200 | No message | Enabled | Yes |
+
+Confirm outcomes:
+
+| TC# | Choice | Confirm ETA | Banner | Subj. to Interest | Est. Interest/Day |
+|---|---|---|---|---|---|
+| M-USD-04a | instant | Same day | Amber | $0.01 | $0.00 |
+| M-USD-04b | settlement | 2-3 business days | Green | -- | -- |
+| M-USD-05a | instant | Same day | Amber | $50.00 | $0.01 |
+| M-USD-05b | settlement | 2-3 business days | Green | -- | -- |
+| M-USD-06a | instant | Same day | Amber | $75.00 | $0.01 |
+| M-USD-06b | settlement | 2-3 business days | Green | -- | -- |
+
+#### margin-borrow ($200 < amount <= $592) -- no dialog, interest always
+
+| TC# | Amount | Input ETA | ETA Color | Next | Confirm ETA | Banner | Subj. to Interest | Est. Interest/Day |
 |---|---|---|---|---|---|---|---|---|
-| M-USD-01 | $0 | No input | No message | — | Disabled (no input) | No | — | — |
-| M-USD-02 | $50 | $50 <= $125 single USD | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| M-USD-03 | $125 | $125 = $125 single USD (boundary) | "This request will be processed same day." | Green | Enabled | No | Same day | None |
-| M-USD-04 | $125.01 | $125.01 > $125 single USD, but <= $235 combined USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-USD-05 | $200 | $200 > $125 single USD, but <= $235 combined USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-USD-06 | $235 | $235 = $235 combined USD (boundary), $235 > $125 single USD | "This request will be processed same day." | Green | Enabled | No | Same day | Amber: "This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
+| M-USD-07 | $200.01 | Same day | Grey | Enabled | Same day | Amber | $75.01 | $0.01 |
+| M-USD-08 | $300 | Same day | Grey | Enabled | Same day | Amber | $175.00 | $0.02 |
+| M-USD-09 | $500 | Same day | Grey | Enabled | Same day | Amber | $375.00 | $0.04 |
+| M-USD-10 | $592 | Same day | Grey | Enabled | Same day | Amber | $467.00 | $0.05 |
 
-#### Scenario: choose-zero ($235 < amount <= $383 combined USD)
+#### rejected (amount > $592)
 
-Each test case has two sub-paths: **instant** and **settlement**.
-
-| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Dialog Warning Text |
-|---|---|---|---|---|---|---|
-| M-USD-07 | $235.01 | "Amount exceeds your settled cash. Choose to transfer now with interest or wait for settlement." | Amber | Enabled | Yes | "Your transfer of $235.01 USD exceeds your settled cash of $235.00 USD. The remaining funds are pending settlement. Please choose how you would like to proceed." |
-| M-USD-08 | $300 | (same ETA message) | Amber | Enabled | Yes | "Your transfer of $300.00 USD exceeds your settled cash of $235.00 USD..." |
-| M-USD-09 | $383 | (same ETA message, boundary) | Amber | Enabled | Yes | "Your transfer of $383.00 USD exceeds your settled cash of $235.00 USD..." |
-
-**Confirm screen outcomes for each choose-zero test case above:**
-
-| TC# | Choice | Confirm ETA | Confirm Banner Color | Confirm Banner Text |
+| TC# | Amount | Input ETA | ETA Color | Next |
 |---|---|---|---|---|
-| M-USD-07a | instant | Same day | Amber | "You chose to transfer instantly. Interest charges will be applied on the unsettled funds portion of this transfer. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-USD-07b | settlement | 2-3 business days | Green | "You chose to wait for settlement day. No interest charges will apply. Your request will be processed once funds have settled, estimated 2-3 business days." |
-| M-USD-08a | instant | Same day | Amber | (same as M-USD-07a) |
-| M-USD-08b | settlement | 2-3 business days | Green | (same as M-USD-07b) |
-| M-USD-09a | instant | Same day | Amber | (same as M-USD-07a) |
-| M-USD-09b | settlement | 2-3 business days | Green | (same as M-USD-07b) |
-
-#### Scenario: margin-borrow ($383 < amount <= $592 combined USD)
-
-No dialog. Interest always applies. Goes directly to confirm screen.
-
-| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|
-| M-USD-10 | $383.01 | "Amount exceeds your cash balance. Interest charges will apply." | Amber | Enabled | No | Same day | Amber: "Interest charges will be applied as your transfer amount exceeds your cash balance. This transfer uses funds from multiple currencies. To avoid margin, ensure you have enough settled cash in this transfer's currency." |
-| M-USD-11 | $500 | (same ETA message) | Amber | Enabled | No | Same day | Amber: (same as M-USD-10) |
-| M-USD-12 | $592 | (same ETA message, boundary) | Amber | Enabled | No | Same day | Amber: (same as M-USD-10) |
-
-#### Scenario: rejected (amount > $592 combined USD)
-
-| TC# | Amount | Input Screen ETA | ETA Color | Next Button | Dialog? | Confirm ETA | Confirm Banner |
-|---|---|---|---|---|---|---|---|
-| M-USD-13 | $592.01 | "Amount exceeds available to transfer of $592.00." | Red | Disabled | No | — | — |
-| M-USD-14 | $1000 | "Amount exceeds available to transfer of $592.00." | Red | Disabled | No | — | — |
+| M-USD-11 | $592.01 | Exceeds $592.00 | Red | Disabled |
+| M-USD-12 | $1000 | Exceeds $592.00 | Red | Disabled |
 
 ---
 
-## Test Cases — Success Screen (All Accounts)
+## Test Cases -- Success Screen
 
-| TC# | Precondition | Expected Heading | Expected Body | Known Issue |
-|---|---|---|---|---|
-| S-01 | Any successful transfer reaches success screen | "Your internal funds transfer is in progress" | "You can review the progress in your internal funds transfer history." | — |
-| S-02 | Click "Done" on success screen | Returns to input screen, amount cleared, settlement choice reset | — | — |
+| TC# | Precondition | Expected Heading | Expected Body |
+|---|---|---|---|
+| S-01 | Any successful transfer reaches success screen | "Your internal funds transfer is in progress" | "You can review the progress in your internal funds transfer history." |
+| S-02 | Click "Done" on success screen | Returns to input screen, amount cleared, settlement choice reset | -- |
 
 ---
 
-## Test Cases — Dialog Behavior (Margin choose-zero only)
+## Test Cases -- Dialog Behavior (Margin choose-zero only)
 
 | TC# | Action | Expected Result |
 |---|---|---|
@@ -278,13 +278,13 @@ No dialog. Interest always applies. Goes directly to confirm screen.
 
 ## Total Test Case Count
 
-- TFSA CAD: 8 cases (T-CAD-01 through T-CAD-08)
-- TFSA USD: 8 cases (T-USD-01 through T-USD-08)
-- CASH CAD: 8 cases (C-CAD-01 through C-CAD-08)
-- CASH USD: 8 cases (C-USD-01 through C-USD-08)
-- MARGIN CAD: 14 input cases + 6 confirm sub-cases = 20 (M-CAD-01 through M-CAD-14, plus a/b variants)
-- MARGIN USD: 14 input cases + 6 confirm sub-cases = 20 (M-USD-01 through M-USD-14, plus a/b variants)
-- Success screen: 2 cases (S-01, S-02)
-- Dialog behavior: 5 cases (D-01 through D-05)
+- TFSA CAD: 9 cases
+- TFSA USD: 9 cases
+- CASH CAD: 10 cases
+- CASH USD: 10 cases
+- MARGIN CAD: 12 input + 6 confirm sub-cases = 18
+- MARGIN USD: 12 input + 6 confirm sub-cases = 18
+- Success screen: 2 cases
+- Dialog behavior: 5 cases
 
-**Grand total: 79 test scenarios**
+**Grand total: 81 test scenarios**
