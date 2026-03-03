@@ -73,6 +73,7 @@ export function TransferView() {
   const [transferCurrency, setTransferCurrency] = useState<"cad" | "usd">("cad")
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
 
+  const [showInfoPanel, setShowInfoPanel] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
   const [dialogScenario, setDialogScenario] = useState<"choose-zero" | "margin-borrow" | null>(null)
   const [settlementChoice, setSettlementChoice] = useState<"instant" | "settlement" | null>(null)
@@ -118,11 +119,13 @@ export function TransferView() {
         combinedCad: fmt(t.combinedCad), combinedUsd: fmt(t.combinedUsd),
       },
     ]
-    if (fromAccount === "margin") {
+    if (fromAccount === "margin" && (fromCurrencyView === "cad" || fromCurrencyView === "usd")) {
       rows.push({
         label: "Avail. to transfer without interest",
         usd: fmt(marginWithoutInterest.usd), cad: fmt(marginWithoutInterest.cad),
         combinedCad: fmt(marginWithoutInterest.combinedCad), combinedUsd: fmt(marginWithoutInterest.combinedUsd),
+        hasTooltip: true,
+        tooltipKey: "without-interest",
       })
     }
     return rows
@@ -612,6 +615,7 @@ export function TransferView() {
               currencyView={fromCurrencyView}
               onCurrencyChange={setFromCurrencyView}
               rows={fromRows}
+              onTooltipClick={() => setShowInfoPanel(true)}
             />
           </div>
         )}
@@ -664,6 +668,34 @@ export function TransferView() {
           Next
         </button>
       </div>
+
+      {/* ── Info slide-up panel ── */}
+      {showInfoPanel && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-foreground/40"
+            onClick={() => setShowInfoPanel(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 w-full max-w-md rounded-t-2xl bg-background px-5 pb-6 pt-4 shadow-xl animate-in slide-in-from-bottom duration-300">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/30" />
+            <button
+              type="button"
+              onClick={() => setShowInfoPanel(false)}
+              className="absolute right-4 top-4 rounded-full p-1 hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <h3 className="mb-3 text-base font-semibold text-foreground">
+              Avail. to transfer without interest
+            </h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              This is your total settled cash amount in your account. Although the cash is available in your account right away for another investment, it takes some time for the actual cash to be exchanged for shares and the trade to be settled.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Settlement / Interest Dialog ── */}
       {showDialog && (
