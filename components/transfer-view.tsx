@@ -84,8 +84,11 @@ export function TransferView() {
   // ── Helpers ──
 
   function logicView(): CurrencyView {
-    if (fromAccount === "margin") return transferCurrency
     return transferCurrency === "cad" ? "combined-cad" : "combined-usd"
+  }
+
+  function singleCurrencyView(): CurrencyView {
+    return transferCurrency
   }
 
   function getTransferThreshold(): Thresholds {
@@ -204,6 +207,14 @@ export function TransferView() {
     if (s === "choose-reduced" && settlementChoice === "settlement") {
       return {
         text: "You chose to wait for settlement day. Interest charges will be reduced but may still apply. Your request will be processed once funds have settled, estimated 2-3 business days.",
+        borderColor: "border-amber-200",
+        bgColor: "bg-amber-50",
+        textColor: "text-amber-800",
+      }
+    }
+    if (s === "same-day" && !isNaN(amount) && amount > val(marginWithoutInterest, singleCurrencyView())) {
+      return {
+        text: "If you don't want to use margin, you need to have enough cash in the currency of the transfer you're placing.",
         borderColor: "border-amber-200",
         bgColor: "bg-amber-50",
         textColor: "text-amber-800",
