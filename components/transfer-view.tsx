@@ -34,6 +34,13 @@ const marginTransfer: Thresholds = { cad: 400, usd: 300, combinedCad: 811, combi
 const marginTransferToday: Thresholds = { cad: 300, usd: 225, combinedCad: 608, combinedUsd: 444 }
 const marginWithoutInterest: Thresholds = { cad: 150, usd: 125, combinedCad: 321, combinedUsd: 235 }
 
+// Unsettled cash = Available to Transfer - Available to Transfer Today
+const tfsaUnsettled: Thresholds = { cad: 25, usd: 15, combinedCad: 46, combinedUsd: 34 }
+const cashUnsettled: Thresholds = { cad: 10, usd: 8, combinedCad: 21, combinedUsd: 15 }
+const marginUnsettled: Thresholds = { cad: 100, usd: 75, combinedCad: 203, combinedUsd: 148 }
+// Margin Cash balance (WithoutInterest + Unsettled = actual cash)
+const marginCash: Thresholds = { cad: 250, usd: 200, combinedCad: 524, combinedUsd: 383 }
+
 function val(t: Thresholds, v: CurrencyView): number {
   switch (v) {
     case "combined-cad": return t.combinedCad
@@ -85,13 +92,35 @@ export function TransferView() {
     return tfsaTransferToday
   }
 
+  function getUnsettledThreshold(): Thresholds {
+    if (fromAccount === "margin") return marginUnsettled
+    if (fromAccount === "cash") return cashUnsettled
+    return tfsaUnsettled
+  }
+
   function getFromRows(): RowData[] {
     const t = getTransferThreshold()
-    return [{
-      label: "Available to transfer",
-      usd: fmt(t.usd), cad: fmt(t.cad),
-      combinedCad: fmt(t.combinedCad), combinedUsd: fmt(t.combinedUsd),
-    }]
+    const u = getUnsettledThreshold()
+    const rows: RowData[] = [
+      {
+        label: "Available to transfer",
+        usd: fmt(t.usd), cad: fmt(t.cad),
+        combinedCad: fmt(t.combinedCad), combinedUsd: fmt(t.combinedUsd),
+      },
+      {
+        label: "Unsettled cash",
+        usd: fmt(u.usd), cad: fmt(u.cad),
+        combinedCad: fmt(u.combinedCad), combinedUsd: fmt(u.combinedUsd),
+      },
+    ]
+    if (fromAccount === "margin") {
+      rows.push({
+        label: "Cash",
+        usd: fmt(marginCash.usd), cad: fmt(marginCash.cad),
+        combinedCad: fmt(marginCash.combinedCad), combinedUsd: fmt(marginCash.combinedUsd),
+      })
+    }
+    return rows
   }
 
   function getToRows(): RowData[] {
