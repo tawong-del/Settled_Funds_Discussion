@@ -363,10 +363,6 @@ export function TransferView() {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Transfer requests submitted outside of business hours or on holidays will be processed the next business day.
           </p>
-          <div className="pt-1">
-            <p className="text-xs font-medium text-muted-foreground">Business hours:</p>
-            <p className="text-xs text-muted-foreground">Monday – Friday, 6:30 am – 4:30 pm ET</p>
-          </div>
         </div>
 
         <div className="flex-1" />
