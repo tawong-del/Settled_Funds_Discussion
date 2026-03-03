@@ -31,7 +31,7 @@ const cashTransfer: Thresholds = { cad: 300, usd: 250, combinedCad: 643, combine
 const cashTransferToday: Thresholds = { cad: 290, usd: 242, combinedCad: 622, combinedUsd: 454 }
 
 const marginTransfer: Thresholds = { cad: 400, usd: 300, combinedCad: 811, combinedUsd: 592 }
-const marginTransferToday: Thresholds = { cad: 400, usd: 300, combinedCad: 811, combinedUsd: 592 }
+const marginTransferToday: Thresholds = { cad: 300, usd: 225, combinedCad: 608, combinedUsd: 444 }
 const marginWithoutInterest: Thresholds = { cad: 150, usd: 125, combinedCad: 321, combinedUsd: 235 }
 
 // Unsettled cash = Available to Transfer - Available to Transfer Today
@@ -182,6 +182,34 @@ export function TransferView() {
     return "2-3 business days"
   }
 
+  function getNonMarginConfirmBanners(): Array<{ text: string; borderColor: string; bgColor: string; textColor: string }> {
+    if (fromAccount === "margin" || isNaN(amount) || amount <= 0) return []
+    const banners: Array<{ text: string; borderColor: string; bgColor: string; textColor: string }> = []
+    const singleTransfer = val(getTransferThreshold(), singleCurrencyView())
+    const combinedToday = val(getTodayThreshold(), logicView())
+    const otherCcy = transferCurrency === "cad" ? "USD" : "CAD"
+
+    if (amount > singleTransfer) {
+      banners.push({
+        text: `Your transfer amount of ${fmt(amount)} ${ccy} exceeds your available ${ccy} balance of ${fmt(singleTransfer)} ${ccy}. The remaining amount will be converted from your ${otherCcy} balance using the current exchange rate.`,
+        borderColor: "border-blue-200",
+        bgColor: "bg-blue-50",
+        textColor: "text-blue-800",
+      })
+    }
+
+    if (amount > combinedToday) {
+      banners.push({
+        text: "Your transfer includes unsettled funds. We will need to wait for the funds to be settled before processing this transfer. Estimated 2-3 business days.",
+        borderColor: "border-amber-200",
+        bgColor: "bg-amber-50",
+        textColor: "text-amber-800",
+      })
+    }
+
+    return banners
+  }
+
   function getMarginChoiceBanner(): { text: string; borderColor: string; bgColor: string; textColor: string } | null {
     if (fromAccount !== "margin") return null
     const s = getMarginScenario()
@@ -316,6 +344,7 @@ export function TransferView() {
   if (screen === "confirm") {
     const confirmEta = getConfirmEta()
     const choiceBanner = getMarginChoiceBanner()
+    const nonMarginBanners = getNonMarginConfirmBanners()
 
     return (
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background">
@@ -391,6 +420,13 @@ export function TransferView() {
             <p className={`text-xs leading-relaxed ${choiceBanner.textColor}`}>{choiceBanner.text}</p>
           </div>
         )}
+
+        {/* Non-margin confirm banners (FX / Unsettled) */}
+        {nonMarginBanners.map((banner, i) => (
+          <div key={i} className={`mx-4 mt-3 rounded-lg border ${banner.borderColor} ${banner.bgColor} px-4 py-3`}>
+            <p className={`text-xs leading-relaxed ${banner.textColor}`}>{banner.text}</p>
+          </div>
+        ))}
 
         {/* Funds held notice */}
         <div className="mx-4 mt-4 space-y-3">
