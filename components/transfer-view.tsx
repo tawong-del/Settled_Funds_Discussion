@@ -70,15 +70,23 @@ export function TransferView() {
   const [fromDropdownOpen, setFromDropdownOpen] = useState(false)
   const [inputAmount, setInputAmount] = useState("")
 
+  const [transferCurrency, setTransferCurrency] = useState<"cad" | "usd">("cad")
+  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
+
   const [showDialog, setShowDialog] = useState(false)
   const [dialogScenario, setDialogScenario] = useState<"choose-zero" | "choose-reduced" | null>(null)
   const [settlementChoice, setSettlementChoice] = useState<"instant" | "settlement" | null>(null)
 
   const amount = parseFloat(inputAmount)
-  const ccy = ccyLabel(fromCurrencyView)
+  const ccy = transferCurrency === "cad" ? "CAD" : "USD"
   const fromInfo = fromAccounts[fromAccount]
 
   // ── Helpers ──
+
+  function logicView(): CurrencyView {
+    if (fromAccount === "margin") return transferCurrency
+    return transferCurrency === "cad" ? "combined-cad" : "combined-usd"
+  }
 
   function getTransferThreshold(): Thresholds {
     if (fromAccount === "margin") return marginTransfer
@@ -127,9 +135,9 @@ export function TransferView() {
 
   function getMarginScenario(): MarginScenario | null {
     if (isNaN(amount) || amount <= 0) return null
-    const noInterest = val(marginWithoutInterest, fromCurrencyView)
-    const today = val(marginTransferToday, fromCurrencyView)
-    const max = val(marginTransfer, fromCurrencyView)
+    const noInterest = val(marginWithoutInterest, logicView())
+    const today = val(marginTransferToday, logicView())
+    const max = val(marginTransfer, logicView())
     if (amount <= noInterest) return "same-day"
     if (amount <= today) return "choose-zero"
     if (amount <= max) return "choose-reduced"
@@ -144,12 +152,12 @@ export function TransferView() {
         case "same-day": return { text: "This request will be processed same day.", color: "text-green-600" }
         case "choose-zero": return { text: "Amount exceeds your cash balance. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
         case "choose-reduced": return { text: "Amount exceeds your cash balance and includes unsettled funds. Choose to transfer now with interest or wait for settlement.", color: "text-amber-600" }
-        case "rejected": return { text: `Amount exceeds available to transfer of ${fmt(val(marginTransfer, fromCurrencyView))}.`, color: "text-red-600" }
+        case "rejected": return { text: `Amount exceeds available to transfer of ${fmt(val(marginTransfer, logicView()))}.`, color: "text-red-600" }
         default: return null
       }
     }
-    const todayLimit = val(getTodayThreshold(), fromCurrencyView)
-    const maxLimit = val(getTransferThreshold(), fromCurrencyView)
+    const todayLimit = val(getTodayThreshold(), logicView())
+    const maxLimit = val(getTransferThreshold(), logicView())
     if (amount <= todayLimit) {
       if (fromAccount === "cash") return { text: "This request will be processed same day.", color: "text-green-600" }
       return { text: "This request will take between 1-2 business days.", color: "text-amber-600" }
@@ -166,7 +174,7 @@ export function TransferView() {
       if ((s === "choose-zero" || s === "choose-reduced") && settlementChoice === "settlement") return "2-3 business days"
       return "2-3 business days"
     }
-    const todayLimit = val(getTodayThreshold(), fromCurrencyView)
+    const todayLimit = val(getTodayThreshold(), logicView())
     if (amount <= todayLimit) {
       if (fromAccount === "cash") return "Same day"
       return "1-2 business days"
@@ -218,7 +226,7 @@ export function TransferView() {
         return
       }
     } else {
-      if (amount > val(getTransferThreshold(), fromCurrencyView)) return
+      if (amount > val(getTransferThreshold(), logicView())) return
     }
     setScreen("confirm")
   }
@@ -249,7 +257,7 @@ export function TransferView() {
 
   const eta = getEtaMessage()
   const isRejected = eta?.color === "text-red-600"
-  const noInterestVal = val(marginWithoutInterest, fromCurrencyView)
+  const noInterestVal = val(marginWithoutInterest, logicView())
 
   // ══════════════════════════════════════
   // SCREEN: Success
@@ -451,13 +459,35 @@ export function TransferView() {
               onChange={handleInputChange}
             />
           </div>
-          <button
-            type="button"
-            className="flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
-          >
-            CAD
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setCurrencyDropdownOpen(!currencyDropdownOpen)}
+              className="flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
+            >
+              {transferCurrency.toUpperCase()}
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+            {currencyDropdownOpen && (
+              <div className="absolute right-0 top-full z-20 mt-1 w-24 rounded-lg border border-border bg-background py-1 shadow-lg">
+                {(["cad", "usd"] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => { setTransferCurrency(c); setCurrencyDropdownOpen(false) }}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                  >
+                    <span className="text-foreground">{c.toUpperCase()}</span>
+                    {transferCurrency === c && (
+                      <svg className="h-4 w-4 text-[#1a8d1a] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {eta && (
